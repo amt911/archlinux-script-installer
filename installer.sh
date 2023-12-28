@@ -30,12 +30,10 @@ ask(){
 
         case $ans in
             y|Y|[yY][eE][sS] )
-                echo "ok"
                 res="$TRUE"
                 done="$TRUE"
                 ;;
             n|N|[nN][oO] )
-                echo "not ok"
                 res="$FALSE"
                 done="$TRUE"
                 ;;
@@ -48,16 +46,82 @@ ask(){
     return "$res"
 }
 
+loadkeys_tty(){
+    local locale
+
+    echo -n "Type desired locale (leave empty for default): "
+    read -r locale
+
+    if [ -n "$locale" ];
+    then
+        echo "Loading $locale..."
+
+        loadkeys "$locale"
+    fi
+}
+
+is_efi(){
+    local res="$FALSE"
+
+    # cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null
+
+
+    # if [ "$?" -eq 0 ];
+    if cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null;
+    then
+        res="$TRUE"
+    fi
+
+    return "$res"
+}
+
+check_current_time(){
+    timedatectl
+
+    if ! ask "Is it accurate?";
+    then
+        local date
+        
+        echo -n "Input the correct date (format: yyyy-mm-dd hh:mm:ss): "
+        read -r date
+
+        timedatectl set-time "$date"
+    fi
+}
+
 # Main function
 main(){
+    loadkeys_tty
+
+    check_current_time
+
+    # if is_efi;
+    # then
+    #     echo "is efi"
+    # else
+    #     echo "not an efi system"
+    # fi
 
     # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
+    # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
+    # then
+    #     echo "Laptop"
+    # else
+    #     echo "Tower"
+    # fi
+
+    
+}
+
+test1(){
     if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
     then
         echo "Laptop"
     else
         echo "Tower"
-    fi
+    fi    
 }
+
+# test1
 
 main
