@@ -155,8 +155,7 @@ mkfs_partitions(){
 
     for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
-        btrfs subvolume create ${#BTRFS_SUBVOL_MNT[@]}
-        # mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
+        btrfs subvolume create "/mnt/${BTRFS_SUBVOL[i]}"
     done
 
     umount /mnt
@@ -165,6 +164,8 @@ mkfs_partitions(){
     do
         mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
     done    
+
+    mount --mkdir "$boot_part" /mnt/boot
 }
 
 # Main function
@@ -202,12 +203,7 @@ main(){
 }
 
 test1(){
-    if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
-    then
-        echo "Laptop"
-    else
-        echo "Tower"
-    fi    
+    mkfs_partitions
 }
 
 # test1
