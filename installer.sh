@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 # TODO:
 # Poder detectar entre CSM y UEFI
@@ -9,18 +9,28 @@ readonly TRUE=0
 readonly FALSE=1
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@var_lib_libvirt" "@srv" "@snapshots" "@home_snapshots")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/lib/libvirt" "/mnt/srv")
-readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "qbittorrent")
-readonly OPTIONAL_PKGS=("man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox")
+# DA FALLO PORQUE DICE QUE EXISTE EL DIRECTORIO /lib
+# HAY QUE QUITAR /mnt/lib/libvirt Y PONERLO DESPUES DE LA INSTALACION DE LOS PAQUETES CON PACSTRAP
+
+
+# Packages
+# 1
+readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs")
+
+readonly OPTIONAL_PKGS=("nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
+
+readonly AMD_PACKAGES=("cpupower")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex" "hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
 
 readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
 
-
+readonly BTRFS_EXTRA=("snapper" "snap-pac")
 # readonly LAPTOP_ADD_PKGS=
 
-# Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox
+# Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
+# Paquetes especiales de la torre que requieren configuración adidional: cpupower
 # Paquetes desactualizados: veracrypt, btop, 
 
 
@@ -182,16 +192,38 @@ mkfs_partitions(){
 }
 
 install_packages(){
-    echo "The following packages are going to be installed."
+    echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
 
-    for i in "${BASE_PKGS[@]}"
-    do
-        echo -n "$i "
-    done
-
-    echo -e "\nDo you wish to continue?"
+    if ask "Do you want to star installation?";
+    then
+        pacstrap -K /mnt "${BASE_PKGS[@]}"
+    fi
 }
 
+configure_fstab(){
+    genfstab -U /mnt >> /mnt/etc/fstab
+}
+
+# $1: Region
+# $2: City
+configure_timezone(){
+    local region
+    local city
+
+    if [ "$#" -lt "2" ];
+    then
+        echo "Timezone region: "
+        read -r region
+
+        echo "City: "
+        read -r city
+    else
+        region="$1"
+        city="$2"
+    fi
+
+    ln -sf /mnt/usr/share/zoneinfo/"$region"/"$city"
+}
 
 final_message(){
     echo "You need to check the following things:
@@ -202,6 +234,8 @@ final_message(){
     echo "Things to keep fix:
         - Read the tlmgr for latex in archlinux wiki.
         "
+
+    echo "${BASE_PKGS[@]}"
 }
 # Main function
 main(){
@@ -210,20 +244,20 @@ main(){
     #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
     # done
     
-    # loadkeys_tty
+    loadkeys_tty
 
-    # if is_efi;
-    # then
-    #     echo "EFI system"
-    # else
-    #     echo "CSM system"
-    # fi
+    if is_efi;
+    then
+        echo "EFI system"
+    else
+        echo "CSM system"
+    fi
 
-    # check_current_time
+    check_current_time
 
-    # partition_drive
+    partition_drive
 
-    # mkfs_partitions
+    mkfs_partitions
 
     install_packages
 
