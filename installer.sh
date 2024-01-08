@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # TODO:
 # Poder detectar entre CSM y UEFI
@@ -9,6 +9,19 @@ readonly TRUE=0
 readonly FALSE=1
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@var_lib_libvirt" "@srv" "@snapshots" "@home_snapshots")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/lib/libvirt" "/mnt/srv")
+readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "qbittorrent")
+readonly OPTIONAL_PKGS=("man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox")
+
+# COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
+readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex" "hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
+
+readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
+
+
+# readonly LAPTOP_ADD_PKGS=
+
+# Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox
+# Paquetes desactualizados: veracrypt, btop, 
 
 
 # testing commands for live environment: passwd
@@ -168,29 +181,54 @@ mkfs_partitions(){
     mount --mkdir "$boot_part" /mnt/boot
 }
 
+install_packages(){
+    echo "The following packages are going to be installed."
+
+    for i in "${BASE_PKGS[@]}"
+    do
+        echo -n "$i "
+    done
+
+    echo -e "\nDo you wish to continue?"
+}
+
+
+final_message(){
+    echo "You need to check the following things:
+        - libreoffice: Enable LanguageTool and Spell checking. CHECK FOR FONTS, THEY ARE NOT INSTALLED.
+        - To update LaTeX packages you need to use tlmgr, refer to archlinux doc.
+        - WIP."
+
+    echo "Things to keep fix:
+        - Read the tlmgr for latex in archlinux wiki.
+        "
+}
 # Main function
 main(){
-    # for i in {1..${#BTRFS_SUBVOL_MNT[@]}}
-    for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
-    do
-        echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
-    done
+    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
+    # do
+    #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
+    # done
     
-    loadkeys_tty
+    # loadkeys_tty
 
-    if is_efi;
-    then
-        echo "EFI system"
-    else
-        echo "CSM system"
-    fi
+    # if is_efi;
+    # then
+    #     echo "EFI system"
+    # else
+    #     echo "CSM system"
+    # fi
 
-    check_current_time
+    # check_current_time
 
-    partition_drive
+    # partition_drive
 
-    mkfs_partitions
+    # mkfs_partitions
 
+    install_packages
+
+    final_message
+    # If example with two variables
     # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
     # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
     # then
