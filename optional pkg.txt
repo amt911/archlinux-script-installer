@@ -1,0 +1,16 @@
+    \item vscode Si se usa KDE y da un error raro, instalar \verb|gnome-keyring|. %(si la fuente es rara se instala ttf-droid. Si Live Share no funciona, instalar \verb|icu69| ó \verb|icu69-bin|. Si se usa KDE y da error raro instalar \verb|gnome-keyring|)
+    \item chromium %(Si se usa KDE recordar en su sección lo de KDE Wallet si aparece)
+    \item megasync
+    \item (OPCIONAL) librewolf
+    \item (OPCIONAL) netbeans
+    \item (OPCIONAL) visual paradigm
+    \item (OPCIONAL) syncthing
+    \item iotop-c
+    \item (OPCIONAL) openrazer (junto con linux-headers si se queja de que faltan kernel headers), polychromatic 
+    \item (OPCIONAL) jdownloader2 (link adware-free)
+    \item (OPCIONAL) ocrmypdf (leerse el github y el manual porque hace falta instalarse más DEPENDENCIAS).
+    \item freefilesync-bin \textbf{COMPROBAR ALTERNATIVA PARA LINUX, EL PAQUETE NO ME INSPIRA DEMASIADA CONFIANZA Y FUNCIONA MAL}
+    \item (OPCIONAL) OBS Studio con configuración para que use aceleración hardware
+    \item yay (con configuracion para paquetes -git de la AUR)
+    \item power-profiles-daemon
+    \item ttf-ms-win11-auto

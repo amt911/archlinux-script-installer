@@ -4,11 +4,14 @@
 # Poder detectar entre CSM y UEFI
 # Intentar hacer algún menú interactivo
 # Fix sleep command (it is a hacky way of doing things)
+# Preguntar por el layout final de cuando te pide las particiones (por si te has equivocado)
 
 readonly TRUE=0
 readonly FALSE=1
-readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@var_lib_libvirt" "@srv" "@snapshots" "@home_snapshots")
-readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/lib/libvirt" "/mnt/srv")
+readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@snapshots" "@home_snapshots")
+readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv")
+# "@var_lib_libvirt"
+# "/mnt/lib/libvirt"
 # DA FALLO PORQUE DICE QUE EXISTE EL DIRECTORIO /lib
 # HAY QUE QUITAR /mnt/lib/libvirt Y PONERLO DESPUES DE LA INSTALACION DE LOS PAQUETES CON PACSTRAP
 
@@ -72,8 +75,6 @@ ask(){
 }
 
 loadkeys_tty(){
-    local locale
-
     echo -n "Type desired locale (leave empty for default): "
     read -r locale
 
@@ -212,17 +213,40 @@ configure_timezone(){
 
     if [ "$#" -lt "2" ];
     then
-        echo "Timezone region: "
+        echo -n "Timezone region: "
         read -r region
 
-        echo "City: "
+        echo -n "City: "
         read -r city
     else
         region="$1"
         city="$2"
     fi
 
-    ln -sf /mnt/usr/share/zoneinfo/"$region"/"$city"
+    arch-chroot /mnt ln -sf /usr/share/zoneinfo/"$region"/"$city" /etc/localtime
+
+    arch-chroot /mnt hwclock --systohc
+}
+
+# $1: locales
+generate_locales(){
+    less /etc/locale.gen
+
+    local locales
+
+    if [ "$#" -eq "0" ];
+    then
+        echo -n "Please type in (space separated) every locale: "
+        read -r locales
+
+    else
+        locales="$1"
+    fi
+
+    echo "$locales"
+
+
+    # grep -iE "#tre" "example"
 }
 
 final_message(){
@@ -237,29 +261,42 @@ final_message(){
 
     echo "${BASE_PKGS[@]}"
 }
+
+
 # Main function
 main(){
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
     # do
     #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
     # done
-    
-    loadkeys_tty
 
-    if is_efi;
+    if [ "$#" -eq "0" ];
     then
-        echo "EFI system"
-    else
-        echo "CSM system"
+        loadkeys_tty
+
+        if is_efi;
+        then
+            echo "EFI system"
+        else
+            echo "CSM system"
+        fi
+
+        check_current_time
+
+        partition_drive
+
+        mkfs_partitions
+        
+        install_packages
+
+        configure_timezone
     fi
 
-    check_current_time
+    generate_locales
 
-    partition_drive
+    # DEBUG
+    locale="us"
 
-    mkfs_partitions
-
-    install_packages
 
     final_message
     # If example with two variables
@@ -280,4 +317,4 @@ test1(){
 
 # test1
 
-main
+main "$@"
