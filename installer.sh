@@ -5,6 +5,8 @@
 # Intentar hacer algún menú interactivo
 # Fix sleep command (it is a hacky way of doing things)
 # Preguntar por el layout final de cuando te pide las particiones (por si te has equivocado)
+# Mejorar la lógica para mostrar los locales disponibles.
+# DONE Mejorar la lógica de loadkeys_tty
 
 readonly TRUE=0
 readonly FALSE=1
@@ -20,7 +22,7 @@ readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/
 # 1
 readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs")
 
-readonly OPTIONAL_PKGS=("nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
+readonly OPTIONAL_PKGS=("less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
 readonly AMD_PACKAGES=("cpupower")
 
@@ -36,6 +38,16 @@ readonly BTRFS_EXTRA=("snapper" "snap-pac")
 # Paquetes especiales de la torre que requieren configuración adidional: cpupower
 # Paquetes desactualizados: veracrypt, btop, 
 
+
+# GLOBAL VARS
+# tty_layout
+# has_swap
+# swap_part
+# boot_part
+# root_part
+# has_encryption
+# DM_NAME
+# machine_name
 
 # testing commands for live environment: passwd
 # testing commands for host: scp installer.sh root@192.168.56.101:/root
@@ -76,14 +88,16 @@ ask(){
 
 loadkeys_tty(){
     echo -n "Type desired locale (leave empty for default): "
-    read -r locale
+    read -r tty_layout
 
-    if [ -n "$locale" ];
+    if [ -z "$tty_layout" ];
     then
-        echo "Loading $locale..."
-
-        loadkeys "$locale"
+        tty_layout="us"
     fi
+
+    echo "Loading $tty_layout..."
+
+    loadkeys "$tty_layout"
 }
 
 is_efi(){
@@ -118,41 +132,53 @@ check_current_time(){
 partition_drive(){
     local part
     local selected="$FALSE"
+    local correct_layout="$FALSE"
 
     echo "These are your system partitions:" 
     lsblk
 
-    while [ "$selected" -eq "$FALSE" ]
+    while [ "$correct_layout" -eq "$FALSE" ]
     do
-        echo -n "Type the drive/partitions where Arch Linux will be installed: "
-        read -r part
+        while [ "$selected" -eq "$FALSE" ]
+        do
+            echo -n "Type the drive/partitions where Arch Linux will be installed: "
+            read -r part
 
-        ask "You have selected $part. Is that correct?";
-        selected="$?"
+            ask "You have selected $part. Is that correct?";
+            selected="$?"
+        done
+
+        echo "Opening cfdisk..."
+        cfdisk "$part"
+
+        sleep 2
+        echo "The partitions are as follows:"
+        lsblk
+
+        ask "Does it have a swap partition?"
+        has_swap="$?"
+        
+        if [ "$has_swap" -eq "$TRUE" ];
+        then
+            echo -n "Type swap partition: "
+            read -r swap_part
+        fi
+
+        
+        echo -n "Type root partition: "
+        read -r root_part
+
+        echo -n "Type boot partition: "
+        read -r boot_part
+
+        echo "You have selected the following partitions:"
+        echo "boot partition: $boot_part"
+        [ "$has_swap" -eq "$TRUE" ] && echo "swap partition: $swap_part"
+        echo "root partition: $root_part"
+
+        ask "Is that correct?"
+        correct_layout="$?"
     done
-
-    echo "Opening cfdisk..."
-    cfdisk "$part"
-
-    sleep 2
-    echo "The partitions are as follows:"
-    lsblk
-
-    ask "Does it have a swap partition?"
-    has_swap="$?"
-    
-    if [ "$has_swap" -eq "$TRUE" ];
-    then
-        echo -n "Type swap partition: "
-        read -r swap_part
-    fi
-
-    
-    echo -n "Type root partition: "
-    read -r root_part
-
-    echo -n "Type boot partition: "
-    read -r boot_part
 }
 
 
@@ -195,6 +221,9 @@ mkfs_partitions(){
 install_packages(){
     echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
 
+    pacman --noconfirm -Sy
+    pacman --noconfirm -S archlinux-keyring
+
     if ask "Do you want to star installation?";
     then
         pacstrap -K /mnt "${BASE_PKGS[@]}"
@@ -230,23 +259,99 @@ configure_timezone(){
 
 # $1: locales
 generate_locales(){
-    less /etc/locale.gen
+    echo "You are about to be shown all available locales, press q to exit"
+    sleep 1
 
-    local locales
+    less /mnt/etc/locale.gen
 
-    if [ "$#" -eq "0" ];
-    then
-        echo -n "Please type in (space separated) every locale: "
-        read -r locales
+    local locale
+    local selected_locales=()
+    local is_done="$FALSE"
+    local all_ok="$FALSE"
+    
+    # Loop to start all over again in case there is a mistake
+    while [ "$all_ok" -eq "$FALSE" ]
+    do
+        # Loop to select all locales
+        while [ "$is_done" -eq "$FALSE" ]
+        do
+            echo -n "Please type in a locale (s to show locales and empty to continue): "
+            read -r locale
 
-    else
-        locales="$1"
-    fi
+            case $locale in
+                [sS]) 
+                less /mnt/etc/locale.gen
+                ;;
 
-    echo "$locales"
+                "")
+                is_done="$TRUE"
+                ;;
+
+                *)
+                if grep -E "#${locale}  $" "/mnt/etc/locale.gen" > /dev/null;
+                then
+                    echo "Adding $locale to the list"
+                    selected_locales=("$selected_locales[@]" $locale)
+                else
+                    echo "$locale not found. Not added to the list."
+                fi
+                ;;
+            esac
+        done
 
 
-    # grep -iE "#tre" "example"
+        # Lists all selected locales
+        echo "These are the selected locales: "
+
+        local counter="1"
+        for i in "${selected_locales[@]}"
+        do
+            echo "$counter.- $i"
+
+            ((counter++))
+        done
+
+        # Starts all over again if the selection is not okay
+        ask "Is everything OK?"
+        all_ok="$?"
+        is_done="$all_ok"
+
+        [ "$all_ok" -eq "$FALSE" ] && selected_locales=()
+    done
+
+    # Uncomment selected locales
+    # sed -i "s/#tres cuatro cinco/nano 33/g" example
+    for i in "${selected_locales[@]}"
+    do
+        echo "Adding ${i}..."
+        sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
+    done
+}
+
+write_keymap(){
+    echo "KEYMAP=$tty_layout" > /mnt/etc/vconsole.conf
+}
+
+net_config(){
+    local hostname_ok="$FALSE"
+
+    while [ "$hostname_ok" -eq "$FALSE" ]
+    do
+        # Create the hostname file
+        echo -n "Type hostname: "
+        read -r machine_name
+
+        if [ -z "$machine_name" ];
+        then
+            echo "Invalid hostname"
+        else
+            hostname_ok="$TRUE"
+        fi
+    done
+
+    echo "$machine_name" > /mnt/etc/hostname
+
+    # TODO: Modify files with IPv4 and IPv6, install NetworkManager and enable its service.
 }
 
 final_message(){
@@ -290,13 +395,15 @@ main(){
         install_packages
 
         configure_timezone
+
+        configure_fstab
+
+        generate_locales
+
+        write_keymap
     fi
 
-    generate_locales
-
-    # DEBUG
-    locale="us"
-
+    net_config
 
     final_message
     # If example with two variables
