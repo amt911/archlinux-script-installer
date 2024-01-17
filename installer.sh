@@ -7,6 +7,8 @@
 # Preguntar por el layout final de cuando te pide las particiones (por si te has equivocado)
 # Mejorar la lógica para mostrar los locales disponibles.
 # DONE Mejorar la lógica de loadkeys_tty
+# Añadir posibilidad de desencriptar utilizando USB
+# Tener en cuenta mas opciones de swap
 
 readonly TRUE=0
 readonly FALSE=1
@@ -48,6 +50,7 @@ readonly BTRFS_EXTRA=("snapper" "snap-pac")
 # has_encryption
 # DM_NAME
 # machine_name
+# is_intel
 
 # testing commands for live environment: passwd
 # testing commands for host: scp installer.sh root@192.168.56.101:/root
@@ -188,7 +191,7 @@ mkfs_partitions(){
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        readonly DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
+        DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
         # local enc_root_part="/dev/mapper/$DM_NAME"
 
         local crypt_done="$FALSE"
@@ -221,11 +224,9 @@ mkfs_partitions(){
 install_packages(){
     echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
 
-    pacman --noconfirm -Sy
-    pacman --noconfirm -S archlinux-keyring
-
     if ask "Do you want to star installation?";
     then
+        pacman --noconfirm -Sy archlinux-keyring
         pacstrap -K /mnt "${BASE_PKGS[@]}"
     fi
 }
@@ -268,7 +269,8 @@ generate_locales(){
     local selected_locales=()
     local is_done="$FALSE"
     local all_ok="$FALSE"
-    
+    local counter
+
     # Loop to start all over again in case there is a mistake
     while [ "$all_ok" -eq "$FALSE" ]
     do
@@ -301,9 +303,9 @@ generate_locales(){
 
 
         # Lists all selected locales
-        echo "These are the selected locales: "
+        echo "These are the selected locales:"
 
-        local counter="1"
+        counter="1"
         for i in "${selected_locales[@]}"
         do
             echo "$counter.- $i"
@@ -352,6 +354,86 @@ net_config(){
     echo "$machine_name" > /mnt/etc/hostname
 
     # TODO: Modify files with IPv4 and IPv6, install NetworkManager and enable its service.
+
+    # On my usual config, I use IPv6 as localhost6
+    echo -e "127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ${machine_name}" >> /mnt/etc/hosts
+
+    # Installation of NetworkManager
+    arch-chroot /mnt pacman --noconfirm -S networkmanager
+    arch-chroot /mnt systemctl enable NetworkManager.service
+}
+
+
+# Only encrypted swap, for now
+configure_swap(){
+    # https://wiki.archlinux.org/title/Dm-crypt/Swap_encryption
+
+    # Create a consistent UUID for the partition
+    mkfs.ext2 -L cryptswap "$swap_part" 1M
+
+    # Insert into crypttab the new entry
+    echo "swap LABEL=cryptswap /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size512" >> /mnt/etc/crypttab
+
+    echo "/dev/mapper/swap none swap defaults 0 0" >> /mnt/etc/fstab
+}
+
+configure_pacman(){
+    echo "WIP"
+}
+
+configure_mkinitcipio(){
+    sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
+
+    # sed -e '/#1/a\' -e "new line" -i example
+
+    # Insert new hook after commented one
+    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs autodetect modconf kms block keyboard sd-vconsole sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
+
+    arch-chroot /mnt mkinitcpio -P
+}
+
+# $1: username. Empty for root
+set_password(){
+    if [ "$#" -eq "0" ];
+    then
+        arch-chroot /mnt passwd
+    else
+        passwd arch-chroot /mnt "$1"
+    fi
+}
+
+install_microcode(){
+    local ucode="amd-ucode"
+
+    ask "Is it an Intel CPU?"
+    is_intel="$?"
+
+    [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
+    
+    arch-chroot /mnt pacman --noconfirm -S "$ucode"
+}
+
+install_bootloader(){
+    # Install bootloader package
+    arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
+
+    # Configure GRUB
+    # /etc/default/grub
+    sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
+
+    local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
+
+    # echo "$ROOT_UUID"
+
+    sed -i "s/^GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=/" /mnt/etc/default/grub
+    sed -i "/^GRUB_CMDLINE_LINUX=/ s/$/\"rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@\"/" /mnt/etc/default/grub
+
+
+    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+
+    install_microcode
+
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 final_message(){
@@ -374,6 +456,19 @@ main(){
     # do
     #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
     # done
+
+    a=("uno" "dos" "tres")
+    b=("1" "2" "3" "4")
+
+    for i in "${a[@]}"
+    do
+        echo "$i"
+    done
+
+    for i in "${b[@]}"
+    do
+        echo "$i"
+    done
 
     if [ "$#" -eq "0" ];
     then
@@ -401,9 +496,19 @@ main(){
         generate_locales
 
         write_keymap
+
+        net_config
+
+        configure_mkinitcipio
+        
+        [ "$has_swap" -eq "$TRUE" ] && configure_swap
+
+        set_password
     fi
 
-    net_config
+    install_bootloader
+
+    configure_pacman
 
     final_message
     # If example with two variables
@@ -417,11 +522,5 @@ main(){
 
     
 }
-
-test1(){
-    mkfs_partitions
-}
-
-# test1
 
 main "$@"
