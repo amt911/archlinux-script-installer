@@ -9,6 +9,7 @@
 # DONE Mejorar la lógica de loadkeys_tty
 # Añadir posibilidad de desencriptar utilizando USB
 # Tener en cuenta mas opciones de swap
+# Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
 
 readonly TRUE=0
 readonly FALSE=1
@@ -24,7 +25,7 @@ readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/
 # 1
 readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs")
 
-readonly OPTIONAL_PKGS=("less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
+readonly OPTIONAL_PKGS=("mec.mec" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
 readonly AMD_PACKAGES=("cpupower")
 
@@ -210,13 +211,15 @@ mkfs_partitions(){
     do
         btrfs subvolume create "/mnt/${BTRFS_SUBVOL[i]}"
     done
+    unset i
 
     umount /mnt
 
     for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
         mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
-    done    
+    done   
+    unset i 
 
     mount --mkdir "$boot_part" /mnt/boot
 }
@@ -224,7 +227,7 @@ mkfs_partitions(){
 install_packages(){
     echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
 
-    if ask "Do you want to star installation?";
+    if ask "Do you want to start installation?";
     then
         pacman --noconfirm -Sy archlinux-keyring
         pacstrap -K /mnt "${BASE_PKGS[@]}"
@@ -305,13 +308,14 @@ generate_locales(){
         # Lists all selected locales
         echo "These are the selected locales:"
 
-        counter="1"
+        counter=1
         for i in "${selected_locales[@]}"
         do
             echo "$counter.- $i"
 
             ((counter++))
         done
+        unset i
 
         # Starts all over again if the selection is not okay
         ask "Is everything OK?"
@@ -328,6 +332,7 @@ generate_locales(){
         echo "Adding ${i}..."
         sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
     done
+    unset i
 }
 
 write_keymap(){
@@ -437,16 +442,16 @@ install_bootloader(){
 }
 
 final_message(){
-    echo "You need to check the following things:
-        - libreoffice: Enable LanguageTool and Spell checking. CHECK FOR FONTS, THEY ARE NOT INSTALLED.
-        - To update LaTeX packages you need to use tlmgr, refer to archlinux doc.
-        - WIP."
+    # echo "You need to check the following things:
+    #     - libreoffice: Enable LanguageTool and Spell checking. CHECK FOR FONTS, THEY ARE NOT INSTALLED.
+    #     - To update LaTeX packages you need to use tlmgr, refer to archlinux doc.
+    #     - WIP."
 
-    echo "Things to keep fix:
-        - Read the tlmgr for latex in archlinux wiki.
-        "
+    # echo "Things to keep fix:
+    #     - Read the tlmgr for latex in archlinux wiki.
+    #     "
 
-    echo "${BASE_PKGS[@]}"
+    # echo "${BASE_PKGS[@]}"
 }
 
 
@@ -457,60 +462,53 @@ main(){
     #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
     # done
 
-    a=("uno" "dos" "tres")
-    b=("1" "2" "3" "4")
+    loadkeys_tty
 
-    for i in "${a[@]}"
-    do
-        echo "$i"
-    done
-
-    for i in "${b[@]}"
-    do
-        echo "$i"
-    done
-
-    if [ "$#" -eq "0" ];
+    if is_efi;
     then
-        loadkeys_tty
-
-        if is_efi;
-        then
-            echo "EFI system"
-        else
-            echo "CSM system"
-        fi
-
-        check_current_time
-
-        partition_drive
-
-        mkfs_partitions
-        
-        install_packages
-
-        configure_timezone
-
-        configure_fstab
-
-        generate_locales
-
-        write_keymap
-
-        net_config
-
-        configure_mkinitcipio
-        
-        [ "$has_swap" -eq "$TRUE" ] && configure_swap
-
-        set_password
+        echo "EFI system"
+    else
+        echo "CSM system"
     fi
+
+    check_current_time
+
+    partition_drive
+
+    mkfs_partitions
+    
+    install_packages
+
+    configure_timezone
+
+    configure_fstab
+
+    generate_locales
+
+    write_keymap
+
+    net_config
+
+    configure_mkinitcipio
+    
+    [ "$has_swap" -eq "$TRUE" ] && configure_swap
+
+    set_password
 
     install_bootloader
 
+    
+    if ask "Basic installation completed!. Do you want to proceed to the optional configuration?";
+    then
+        echo "OK"
+    fi
+    
+
     configure_pacman
 
-    final_message
+
+
+    # final_message
     # If example with two variables
     # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
     # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
