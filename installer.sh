@@ -1,5 +1,9 @@
 #!/bin/zsh
 
+# testing commands for live environment: passwd
+# set static ip to archiso: ip a add 192.168.56.101/24 broadcast + dev enp0s8
+# testing commands for host: scp installer.sh root@192.168.56.101:/root
+
 # TODO:
 # Poder detectar entre CSM y UEFI
 # Intentar hacer algún menú interactivo
@@ -25,7 +29,9 @@ readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/
 # 1
 readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs")
 
-readonly OPTIONAL_PKGS=("mec.mec" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "zsh" "fzf" "lsd" "fish" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
+readonly SHELLS_SUDO=("zsh" "fish" "sudo")
+
+readonly OPTIONAL_PKGS=("mec.mec" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
 readonly AMD_PACKAGES=("cpupower")
 
@@ -52,9 +58,6 @@ readonly BTRFS_EXTRA=("snapper" "snap-pac")
 # DM_NAME
 # machine_name
 # is_intel
-
-# testing commands for live environment: passwd
-# testing commands for host: scp installer.sh root@192.168.56.101:/root
 
 # Asks for something to do in this script.
 # 
@@ -88,6 +91,25 @@ ask(){
     done
 
     return "$res"
+}
+
+# $1: Pattern to find
+# $2: Text to add
+# $3: filename
+# $4: is double quote (TRUE/FALSE)
+# note: If you need to use "/", the put it like \/
+add_sentence_end_quote(){
+    # sed "/^example=/s/\"$/ adios\"/" example
+
+    local -r PATTERN="$1"
+    local -r NEW_TEXT="$2"
+    local -r FILENAME="$3"
+    local quote='\"'
+
+    [ "$4" -eq "$FALSE" ] && quote="'"
+
+
+    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" ${FILENAME}
 }
 
 loadkeys_tty(){
@@ -382,10 +404,6 @@ configure_swap(){
     echo "/dev/mapper/swap none swap defaults 0 0" >> /mnt/etc/fstab
 }
 
-configure_pacman(){
-    echo "WIP"
-}
-
 configure_mkinitcipio(){
     sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
 
@@ -428,10 +446,7 @@ install_bootloader(){
 
     local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
 
-    # echo "$ROOT_UUID"
-
-    sed -i "s/^GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=/" /mnt/etc/default/grub
-    sed -i "/^GRUB_CMDLINE_LINUX=/ s/$/\"rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@\"/" /mnt/etc/default/grub
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE"
 
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -439,6 +454,111 @@ install_bootloader(){
     install_microcode
 
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+enable_trim(){
+    if [ -z "$has_encryption" ];
+    then
+        ask "Does it have encryption?"
+        has_encryption="$?"
+    fi
+
+    arch-chroot /mnt pacman --noconfirm -S util-linux
+    arch-chroot /mnt systemctl enable fstrim.timer
+
+    if [ "$has_encryption" -eq "$TRUE" ];
+    then
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/mnt/etc/default/grub" "$TRUE"
+        arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg 
+    fi
+}
+
+enable_reisub(){
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/mnt/etc/default/grub" "$TRUE"
+
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+
+improve_pacman(){
+
+}
+
+install_bluetooth(){
+
+}
+
+enable_ntfs(){
+
+}
+
+btrfs_scrub(){
+
+}
+
+btrfs_snapshots(){
+
+}
+
+add_users(){
+    local adduser_done="$TRUE"
+    local username
+    local is_sudo
+    local shell
+    local passwd_ok="$FALSE"
+
+    while [ "$adduser_done" -eq "$TRUE" ]
+    do
+
+        echo -n "Username: "
+        read -r username
+
+        echo "Available shells:"
+        cat /mnt/etc/shells
+
+        echo -n "Select a shell: "
+        read -r shell
+
+        if ask "Do you want this user to be part of the sudo (wheel) group?";
+        then
+            arch-chroot /mnt useradd -m -G wheel -s "$shell" "$username"
+        else
+            arch-chroot /mnt useradd -m -s "$shell" "$username"
+        fi
+
+        passwd_ok="$FALSE"
+
+        while [ "$passwd_ok" -eq "$FALSE" ]
+        do
+            echo "Now you will be asked to type a password for the new user"
+            arch-chroot /mnt passwd "$username"
+
+
+            if [ "$?" -ne "$TRUE" ];
+            then
+                passwd_ok="$FALSE"
+            else
+                passwd_ok="$TRUE"
+            fi
+        done
+
+
+        ask "Do you want to add another user?"
+        adduser_done="$?"
+    done
+}
+
+install_shells(){
+    arch-chroot /mnt pacman --noconfirm -S ${SHELLS_SUDO[@]}
+
+    sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /mnt/etc/sudoers
+
+    echo "Check if everything is OK"
+    grep -i "%wheel" /mnt/etc/sudoers
+}
+
+install_firewall(){
+
 }
 
 final_message(){
@@ -455,6 +575,7 @@ final_message(){
 }
 
 
+
 # Main function
 main(){
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
@@ -462,49 +583,60 @@ main(){
     #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
     # done
 
-    loadkeys_tty
-
-    if is_efi;
+    if [ "$#" -eq "0" ];
     then
-        echo "EFI system"
-    else
-        echo "CSM system"
+        loadkeys_tty
+
+        if is_efi;
+        then
+            echo "EFI system"
+        else
+            echo "CSM system"
+        fi
+
+        check_current_time
+
+        partition_drive
+
+        mkfs_partitions
+        
+        install_packages
+
+        configure_timezone
+
+        configure_fstab
+
+        generate_locales
+
+        write_keymap
+
+        net_config
+
+        configure_mkinitcipio
+        
+        [ "$has_swap" -eq "$TRUE" ] && configure_swap
+
+        set_password
+
+        install_bootloader
     fi
-
-    check_current_time
-
-    partition_drive
-
-    mkfs_partitions
     
-    install_packages
 
-    configure_timezone
-
-    configure_fstab
-
-    generate_locales
-
-    write_keymap
-
-    net_config
-
-    configure_mkinitcipio
-    
-    [ "$has_swap" -eq "$TRUE" ] && configure_swap
-
-    set_password
-
-    install_bootloader
-
-    
     if ask "Basic installation completed!. Do you want to proceed to the optional configuration?";
     then
-        echo "OK"
+        if [ "$#" -eq "0" ];
+        then
+            ask "Do you want to have REISUB?" && enable_reisub
+            ask "Do you want to enable TRIM?" && enable_trim
+            ask "Do you want to install additional shells and sudo? THIS WILL MODIFY THE SUDOERS FILE TO ENABLE SUDO IN WHEEL GROUP" && install_shells
+        fi
+        
+        add_users
+
+        # improve_pacman
     fi
     
 
-    configure_pacman
 
 
 
