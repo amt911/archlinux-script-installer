@@ -15,6 +15,7 @@
 # Tener en cuenta mas opciones de swap
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
 # Investigar paccache https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
+# Asegurar que al menos un usuario esta en el grupo wheel
 
 readonly TRUE=0
 readonly FALSE=1
@@ -31,9 +32,9 @@ readonly BTRFS_SNAP_MNT=("/mnt/.snapshots" "/mnt/home/.snapshots")
 
 # Packages
 # 1
-readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs")
+readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi")
 
-readonly SHELLS_SUDO=("zsh" "fish" "sudo")
+# readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 
 readonly OPTIONAL_PKGS=("mec.mec" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
@@ -460,143 +461,170 @@ install_bootloader(){
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
-enable_trim(){
-    if [ -z "$has_encryption" ];
-    then
-        ask "Does it have encryption?"
-        has_encryption="$?"
-    fi
+# enable_trim(){
+#     if [ -z "$has_encryption" ];
+#     then
+#         ask "Does it have encryption?"
+#         has_encryption="$?"
+#     fi
 
-    arch-chroot /mnt pacman --noconfirm -S util-linux
-    arch-chroot /mnt systemctl enable fstrim.timer
+#     arch-chroot /mnt pacman --noconfirm -S util-linux
+#     arch-chroot /mnt systemctl enable fstrim.timer
 
-    if [ "$has_encryption" -eq "$TRUE" ];
-    then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/mnt/etc/default/grub" "$TRUE"
-        arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg 
-    fi
-}
+#     if [ "$has_encryption" -eq "$TRUE" ];
+#     then
+#         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/mnt/etc/default/grub" "$TRUE"
+#         arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg 
+#     fi
+# }
 
-enable_reisub(){
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/mnt/etc/default/grub" "$TRUE"
+# enable_reisub(){
+#     add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/mnt/etc/default/grub" "$TRUE"
 
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
-}
-
-
-improve_pacman(){
-    sed -i "s/^#Parallel/Parallel/" /mnt/etc/pacman.conf
-    sed -i "s/^#Color/Color/" /mnt/etc/pacman.conf
-
-    echo "These are the changed lines:"
-    grep "Parallel" /mnt/etc/pacman.conf
-    grep -E "^Color" /mnt/etc/pacman.conf
-}
-
-install_bluetooth(){
-
-}
-
-enable_ntfs(){
-
-}
-
-btrfs_scrub(){
-
-}
-
-btrfs_snapshots(){
-    # Aqui debe ir el hook de pacman
-}
-
-add_users(){
-    local adduser_done="$TRUE"
-    local username
-    local is_sudo
-    local shell
-    local passwd_ok="$FALSE"
-
-    while [ "$adduser_done" -eq "$TRUE" ]
-    do
-
-        echo -n "Username: "
-        read -r username
-
-        echo "Available shells:"
-        cat /mnt/etc/shells
-
-        echo -n "Select a shell: "
-        read -r shell
-
-        if ask "Do you want this user to be part of the sudo (wheel) group?";
-        then
-            arch-chroot /mnt useradd -m -G wheel -s "$shell" "$username"
-        else
-            arch-chroot /mnt useradd -m -s "$shell" "$username"
-        fi
-
-        passwd_ok="$FALSE"
-
-        while [ "$passwd_ok" -eq "$FALSE" ]
-        do
-            echo "Now you will be asked to type a password for the new user"
-            arch-chroot /mnt passwd "$username"
+#     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+# }
 
 
-            if [ "$?" -ne "$TRUE" ];
-            then
-                passwd_ok="$FALSE"
-            else
-                passwd_ok="$TRUE"
-            fi
-        done
+# improve_pacman(){
+#     sed -i "s/^#Parallel/Parallel/" /mnt/etc/pacman.conf
+#     sed -i "s/^#Color/Color/" /mnt/etc/pacman.conf
+
+#     echo "These are the changed lines:"
+#     grep "Parallel" /mnt/etc/pacman.conf
+#     grep -E "^Color" /mnt/etc/pacman.conf
+# }
+
+# install_bluetooth(){
+#     echo "Installing bluetooth..."
+#     arch-chroot /mnt pacman --noconfirm -S bluez bluez-utils
+
+# }
+
+# enable_ntfs(){
+
+# }
+
+# btrfs_scrub(){
+#     arch-chroot /mnt systemctl enable btrfs-scrub@-.timer
+# }
+
+# btrfs_snapshots(){
+#     # Aqui debe ir el hook de pacman
+# }
+
+# add_users(){
+#     local adduser_done="$TRUE"
+#     local username
+#     local is_sudo
+#     local shell
+#     local passwd_ok="$FALSE"
+
+#     while [ "$adduser_done" -eq "$TRUE" ]
+#     do
+
+#         echo -n "Username: "
+#         read -r username
+
+#         echo "Available shells:"
+#         cat /mnt/etc/shells
+
+#         echo -n "Select a shell: "
+#         read -r shell
+
+#         if ask "Do you want this user to be part of the sudo (wheel) group?";
+#         then
+#             arch-chroot /mnt useradd -m -G wheel -s "$shell" "$username"
+#         else
+#             arch-chroot /mnt useradd -m -s "$shell" "$username"
+#         fi
+
+#         passwd_ok="$FALSE"
+
+#         while [ "$passwd_ok" -eq "$FALSE" ]
+#         do
+#             echo "Now you will be asked to type a password for the new user"
+#             arch-chroot /mnt passwd "$username"
 
 
-        ask "Do you want to add another user?"
-        adduser_done="$?"
-    done
-}
+#             if [ "$?" -ne "$TRUE" ];
+#             then
+#                 passwd_ok="$FALSE"
+#             else
+#                 passwd_ok="$TRUE"
+#             fi
+#         done
 
-install_shells(){
-    arch-chroot /mnt pacman --noconfirm -S ${SHELLS_SUDO[@]}
 
-    sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /mnt/etc/sudoers
+#         ask "Do you want to add another user?"
+#         adduser_done="$?"
+#     done
+# }
 
-    echo "Check if everything is OK"
-    grep -i "%wheel" /mnt/etc/sudoers
-}
+# install_shells(){
+#     arch-chroot /mnt pacman --noconfirm -S ${SHELLS_SUDO[@]}
 
-prepare_for_aur(){
-    # Mejorar aqui el make para que sea multinucleo
-}
+#     sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /mnt/etc/sudoers
 
-install_firewall(){
+#     echo "Check if everything is OK"
+#     grep -i "%wheel" /mnt/etc/sudoers
+# }
 
-}
+# get_sudo_user(){
+#     grep -E "^wheel" /mnt/etc/gshadow | cut -d: -f4 | cut -d, -f1
+# }
 
-install_kde(){
+# prepare_for_aur(){
+#     # Mejorar aqui el make para que sea multinucleo
+#     arch-chroot /mnt pacman --noconfirm -S base-devel git
 
-}
+#     # https://wiki.archlinux.org/title/makepkg#Parallel_compilation
+#     # Enable multi-core compilation
+#     awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"-j$(nproc)\""}};1' /mnt/etc/makepkg.conf > /mnt/etc/makepkg.tmp && mv /mnt/etc/makepkg.tmp /mnt/etc/makepkg.conf
 
-install_gnome(){
+#     echo "Check changes: "
+#     grep "MAKEFLAGS=" /mnt/etc/makepkg.conf
+#     echo ""
 
-}
+#     # echo "You will now be redirected to a user. Type \"\$HOME/chrooted.sh\" to start"
+#     # sleep 2
+#     # local -r USER=$(get_sudo_user)
+#     # cp chrooted.sh "/mnt/home/$USER/chrooted.sh"
+#     # arch-chroot /mnt su "$USER"
+# }
 
-install_kvm(){
-    # Aqui hay que crear el subvolumen libvirt
-}
+# install_firewall(){
 
-install_printer(){
+# }
 
-}
+# install_kde(){
 
-install_fonts(){
+# }
 
-}
+# install_gnome(){
 
-enable_reflector(){
+# }
 
-}
+# install_kvm(){
+#     # Aqui hay que crear el subvolumen libvirt
+#     # Aqui tambien hay que recordar instalar tpm
+# }
+
+# install_printer(){
+
+# }
+
+# install_fonts(){
+
+# }
+
+# enable_reflector(){
+#     arch-chroot /mnt pacman --noconfirm -S reflector
+#     arch-chroot /mnt systemctl enable reflector.timer
+# }
+
+# enable_hw_acceleration(){
+    
+# }
 
 final_message(){
     # echo "You need to check the following things:
@@ -611,92 +639,83 @@ final_message(){
     # echo "${BASE_PKGS[@]}"
 }
 
-install_optional_pkgs(){
+# install_optional_pkgs(){
 
-}
+# }
 
-enable_multilib(){
-    # awk 'BEGIN {num=3; first="#[h]"; entered="false"} ($0==first||entered=="true")&&num>0 {sub(/#/,"");print $0;num--;entered="true"}' example
-    # awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} ($0==first||entered=="true")&&num>0 {sub(/#/,"");print $0;num--;entered="true"}' example
-    # awk 'BEGIN {num=20; first="#1"; entered="false"} {if(($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};print $0}' example
-    awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} {if(($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};print $0}' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.TMP && mv /mnt/etc/pacman.conf.TMP /mnt/etc/pacman.conf
+# install_cpu_scaler(){
+
+# }
+
+# enable_multilib(){
+#     # awk 'BEGIN {num=20; first="#[h]"; entered="false"} (($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};1' example
+#     awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};1' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.TMP && mv /mnt/etc/pacman.conf.TMP /mnt/etc/pacman.conf
+
+#     arch-chroot /mnt pacman --noconfirm -Syu
+#     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+#     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+#     echo "Check changes:"
+#     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /mnt/etc/pacman.conf
+# }
+
+
+# # Laptop specific functions
+# enable_envycontrol(){
+
+# }
+
+# Only for debugging purposes
+install_ssh(){
+    arch-chroot /mnt pacman --noconfirm -S openssh
+    arch-chroot /mnt systemctl enable sshd.service
+
+    # Modify file to accept root
+    sed -i "s/^#PermitRootLogin prohibit-password/PermitRootLogin yes/" /mnt/etc/ssh/sshd_config
 }
 
 # Main function
 main(){
-    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
-    # do
-    #     echo "${BTRFS_SUBVOL_MNT[i]} -> ${BTRFS_SUBVOL[i]}"
-    # done
+    # loadkeys_tty
 
-    if [ "$#" -eq "0" ];
-    then
-        loadkeys_tty
-
-        if is_efi;
-        then
-            echo "EFI system"
-        else
-            echo "CSM system"
-        fi
-
-        check_current_time
-
-        partition_drive
-
-        mkfs_partitions
-        
-        install_packages
-
-        configure_timezone
-
-        configure_fstab
-
-        generate_locales
-
-        write_keymap
-
-        net_config
-
-        configure_mkinitcipio
-        
-        [ "$has_swap" -eq "$TRUE" ] && configure_swap
-
-        set_password
-
-        install_bootloader
-    fi
-    
-
-    if ask "Basic installation completed!. Do you want to proceed to the optional configuration?";
-    then
-        if [ "$#" -eq "0" ];
-        then
-            ask "Do you want to have REISUB?" && enable_reisub
-            ask "Do you want to enable TRIM?" && enable_trim
-            ask "Do you want to install additional shells and sudo? THIS WILL MODIFY THE SUDOERS FILE TO ENABLE SUDO IN WHEEL GROUP" && install_shells
-            add_users
-            ask "Do you want to parallelize package downloads and color them?" && improve_pacman
-            ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
-        fi
-        
-    fi
-    
-
-
-
-
-    # final_message
-    # If example with two variables
-    # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
-    # if ask "Is this a laptop or a tower PC? (yes=laptop/no=tower)" || [ "$var" = "yes" ];
+    # if is_efi;
     # then
-    #     echo "Laptop"
+    #     echo "EFI system"
     # else
-    #     echo "Tower"
+    #     echo "CSM system"
     # fi
 
+    # check_current_time
+
+    # partition_drive
+
+    # mkfs_partitions
     
+    # install_packages
+
+    # configure_timezone
+
+    # configure_fstab
+
+    # generate_locales
+
+    # write_keymap
+
+    # net_config
+
+    # configure_mkinitcipio
+    
+    # [ "$has_swap" -eq "$TRUE" ] && configure_swap
+
+    # set_password
+
+    # install_bootloader
+    
+    install_ssh
+
+    echo "Basic installation completed!. Now boot to root user and continue with the installation"
+
+    cp after_install.sh /mnt/root
 }
 
 main "$@"

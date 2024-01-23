@@ -9,3 +9,5 @@ hola
 #[h]
 #hola
 #hola 2
+#MAKEFLAGS="-j2"
+#ListenAddress 0.0.0.0
