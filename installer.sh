@@ -14,11 +14,15 @@
 # Añadir posibilidad de desencriptar utilizando USB
 # Tener en cuenta mas opciones de swap
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
+# Investigar paccache https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
 
 readonly TRUE=0
 readonly FALSE=1
-readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@snapshots" "@home_snapshots")
-readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv")
+# https://wiki.archlinux.org/title/Snapper#Preventing_slowdowns
+readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@var_tmp")
+readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
+readonly BTRFS_SNAP=("@snapshots" "@home_snapshots")
+readonly BTRFS_SNAP_MNT=("/mnt/.snapshots" "/mnt/home/.snapshots")
 # "@var_lib_libvirt"
 # "/mnt/lib/libvirt"
 # DA FALLO PORQUE DICE QUE EXISTE EL DIRECTORIO /lib
@@ -481,7 +485,12 @@ enable_reisub(){
 
 
 improve_pacman(){
+    sed -i "s/^#Parallel/Parallel/" /mnt/etc/pacman.conf
+    sed -i "s/^#Color/Color/" /mnt/etc/pacman.conf
 
+    echo "These are the changed lines:"
+    grep "Parallel" /mnt/etc/pacman.conf
+    grep -E "^Color" /mnt/etc/pacman.conf
 }
 
 install_bluetooth(){
@@ -497,7 +506,7 @@ btrfs_scrub(){
 }
 
 btrfs_snapshots(){
-
+    # Aqui debe ir el hook de pacman
 }
 
 add_users(){
@@ -557,7 +566,35 @@ install_shells(){
     grep -i "%wheel" /mnt/etc/sudoers
 }
 
+prepare_for_aur(){
+    # Mejorar aqui el make para que sea multinucleo
+}
+
 install_firewall(){
+
+}
+
+install_kde(){
+
+}
+
+install_gnome(){
+
+}
+
+install_kvm(){
+    # Aqui hay que crear el subvolumen libvirt
+}
+
+install_printer(){
+
+}
+
+install_fonts(){
+
+}
+
+enable_reflector(){
 
 }
 
@@ -574,7 +611,16 @@ final_message(){
     # echo "${BASE_PKGS[@]}"
 }
 
+install_optional_pkgs(){
 
+}
+
+enable_multilib(){
+    # awk 'BEGIN {num=3; first="#[h]"; entered="false"} ($0==first||entered=="true")&&num>0 {sub(/#/,"");print $0;num--;entered="true"}' example
+    # awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} ($0==first||entered=="true")&&num>0 {sub(/#/,"");print $0;num--;entered="true"}' example
+    # awk 'BEGIN {num=20; first="#1"; entered="false"} {if(($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};print $0}' example
+    awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} {if(($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};print $0}' /mnt/etc/pacman.conf > /mnt/etc/pacman.conf.TMP && mv /mnt/etc/pacman.conf.TMP /mnt/etc/pacman.conf
+}
 
 # Main function
 main(){
@@ -629,11 +675,11 @@ main(){
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
             ask "Do you want to install additional shells and sudo? THIS WILL MODIFY THE SUDOERS FILE TO ENABLE SUDO IN WHEEL GROUP" && install_shells
+            add_users
+            ask "Do you want to parallelize package downloads and color them?" && improve_pacman
+            ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
         fi
         
-        add_users
-
-        # improve_pacman
     fi
     
 
