@@ -227,7 +227,10 @@ true
 
 install_cpu_scaler(){
     # To implement on a real machine
-true
+#     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
+# Firtst, ask if it is AMD CPU: amd_pstate=guided
+# https://docs.kernel.org/admin-guide/pm/amd-pstate.html
+# https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
 }
 
 enable_hw_acceleration(){
