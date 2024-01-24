@@ -6,6 +6,7 @@ readonly FALSE=1
 
 # TODO
 # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+# ROOTLESS SDDM UNDER WAYLAND
 
 # GLOBAL VARS
 # tty_layout
@@ -225,10 +226,12 @@ true
 }
 
 install_cpu_scaler(){
+    # To implement on a real machine
 true
 }
 
 enable_hw_acceleration(){
+    # To implement on a real machine
     true
 }
 
@@ -248,7 +251,16 @@ install_xorg(){
         echo "CHECK IF THESE PACKAGES ARE CORRECT!"
         sleep 3
         pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+
+    else
+        # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+        echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
+        echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+        # To check if it is working: 
+        # cat /sys/module/nvidia_drm/parameters/modeset
     fi
+
+    # I do not disable kms HOOK because nvidia-utils blacklists nouveau by default.
 }
 
 install_kde(){
@@ -259,6 +271,14 @@ install_kde(){
     if ask "Do you want to install extra applications for KDE?";
     then
         pacman --noconfirm -S kde-graphics-meta kde-system-meta kde-utilities-meta kde-multimedia-meta
+    fi
+
+    systemctl enable sddm.service
+
+    if ask "You need to reboot. Reboot?";
+    then
+        touch /root/after_install.tmp
+        reboot
     fi
 }
 
@@ -317,6 +337,33 @@ install_yay(){
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
+enable_crypt_keyfile(){
+    true
+}
+
+# CHECK FOR ROOTLESS WAYLAND!!!
+rootless_kde(){
+    local -r RESULT=$(ps -o user= -C Xorg)
+
+    echo "Making SDDM Rootless..."
+
+    if [ "$RESULT" = "root" ];
+    then
+        echo "Creating file..."
+
+        mkdir /etc/sddm.conf.d
+
+        echo "[General]" > /etc/sddm.conf.d/rootless-x11.conf
+        echo "DisplayServer=x11-user" >> /etc/sddm.conf.d/rootless-x11.conf
+    else
+        echo "Already running in rootless mode."
+    fi
+}
+
+cleanup(){
+    rm -rf /root/after_install.tmp
+}
+
 # Laptop specific functions
 enable_envycontrol(){
 true
@@ -342,11 +389,18 @@ main(){
         ask "Do you want to install an AUR helper?" && install_yay
         ask "Do you want to install bluetooth service?" && install_bluetooth
 
-        # CHECK INSTALL_XORG ON LAPTOP. REVISAR NVIDIA_DRM MODESET 
+        # CHECK INSTALL_XORG ON LAPTOP. 
         ask "Do you want to install Xorg and graphics driver?" && install_xorg
     fi
-        # IN PROCESS
+
+    if [ ! -f "/root/after_install.tmp" ];
+    then
         ask "Do you want to install KDE?" && install_kde
+    else
+        # CHECK FOR ROOTLESS WAYLAND!!!
+        rootless_kde
+    fi
+        # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
 }
