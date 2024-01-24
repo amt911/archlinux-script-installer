@@ -4,6 +4,9 @@ readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly TRUE=0
 readonly FALSE=1
 
+# TODO
+# https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+
 # GLOBAL VARS
 # tty_layout
 # has_swap
@@ -14,6 +17,7 @@ readonly FALSE=1
 # DM_NAME
 # machine_name
 # is_intel
+# is_laptop
 
 # Asks for something to do in this script.
 # 
@@ -193,8 +197,23 @@ prepare_for_aur(){
 }
 
 install_bluetooth(){
-    echo "WIP Installing bluetooth..."
-    # arch-chroot /mnt pacman --noconfirm -S bluez bluez-utils
+    echo "Installing bluetooth..."
+    pacman --noconfirm -S bluez bluez-utils
+
+    lsmod | grep -i btusb
+    local -r EXIT_CODE="$?"
+
+    if [ "$EXIT_CODE" -eq "$FALSE" ];
+    then
+        echo "btusb module not loaded. Creating file to load it..."
+
+        modprobe btusb
+
+        echo "btusb" > /etc/modules-load.d/bluetooth.conf 
+    fi
+
+    systemctl enable bluetooth.service
+    systemctl start bluetooth.service
 }
 
 enable_ntfs(){
@@ -217,8 +236,30 @@ install_firewall(){
 true
 }
 
+install_xorg(){
+    ask "Is this machine a laptop?"
+    is_laptop="$?"
+
+
+    pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
+
+    if [ "$is_laptop" -eq "$TRUE" ];
+    then
+        echo "CHECK IF THESE PACKAGES ARE CORRECT!"
+        sleep 3
+        pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+    fi
+}
+
 install_kde(){
-true
+    # Aqui se deberia aplicar el fix para que sea xorg rootless
+    echo "Installing KDE Plasma..."
+    pacman --noconfirm -S plasma-meta plasma-wayland-session 
+
+    if ask "Do you want to install extra applications for KDE?";
+    then
+        pacman --noconfirm -S kde-graphics-meta kde-system-meta kde-utilities-meta kde-multimedia-meta
+    fi
 }
 
 install_gnome(){
@@ -281,6 +322,10 @@ enable_envycontrol(){
 true
 }
 
+laptop_extra_config(){
+    # aqui va la configuracion de los altavoces y eso
+    true
+}
 
 main(){
     if [ "$#" -eq "0" ];
@@ -295,10 +340,13 @@ main(){
         ask "Do you want to enable scrub?" && btrfs_scrub
         ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
         ask "Do you want to install an AUR helper?" && install_yay
-    fi
-        # IN PROCESS
         ask "Do you want to install bluetooth service?" && install_bluetooth
 
+        # CHECK INSTALL_XORG ON LAPTOP. REVISAR NVIDIA_DRM MODESET 
+        ask "Do you want to install Xorg and graphics driver?" && install_xorg
+    fi
+        # IN PROCESS
+        ask "Do you want to install KDE?" && install_kde
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
 }
