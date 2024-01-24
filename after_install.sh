@@ -74,15 +74,6 @@ enable_reisub(){
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
-install_yay(){
-    git clone https://aur.archlinux.org/yay.git "$HOME/yay"
-    cd "$HOME/yay" && makepkg -sri
-
-    yay -Y --gendb
-    yay -Syu --devel
-    yay -Y --devel --save
-}
-
 enable_trim(){
     if [ -z "$has_encryption" ];
     then
@@ -244,8 +235,13 @@ install_printer(){
 true
 }
 
-install_fonts(){
+install_ms_fonts(){
 true
+}
+
+install_lsd(){
+    # Aqui se debe instalar lsd y la fuente nerd
+    true
 }
 
 btrfs_snapshots(){
@@ -256,6 +252,28 @@ btrfs_snapshots(){
 disable_ssh_service(){
     systemctl disable sshd.service
     sed -i "s/^PermitRootLogin yes/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
+}
+
+get_sudo_user(){
+    grep -E "^wheel" /etc/gshadow | cut -d: -f4 | cut -d, -f1
+}
+
+install_yay(){
+    # https://stackoverflow.com/questions/5560442/how-to-run-two-commands-with-sudo
+    local -r USER=$(get_sudo_user)
+
+    sudo -S -i -u "$USER" git clone https://aur.archlinux.org/yay.git "/home/$USER/yay"
+
+    # https://unix.stackexchange.com/questions/176997/sudo-as-another-user-with-their-environment
+    sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/yay\" && makepkg -sri"
+
+    echo "Configuring yay..."
+    sudo -S -i -u "$USER" yay -Y --gendb
+    sudo -S -i -u "$USER" yay -Syu --devel
+    sudo -S -i -u "$USER" yay -Y --devel --save 
+
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+    grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 # Laptop specific functions
@@ -275,11 +293,11 @@ main(){
         ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
         ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
         ask "Do you want to enable scrub?" && btrfs_scrub
+        ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
+        ask "Do you want to install an AUR helper?" && install_yay
     fi
-        # ask "Do you want to install an AUR helper and multi-core compilation?" && prepare_for_aur
-        # # IN PROCESS
-        # install_yay
-        # ask "Do you want to install bluetooth service?" && install_bluetooth
+        # IN PROCESS
+        ask "Do you want to install bluetooth service?" && install_bluetooth
 
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service

@@ -36,7 +36,7 @@ readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi")
 
 # readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 
-readonly OPTIONAL_PKGS=("mec.mec" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
+readonly OPTIONAL_PKGS=("less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
 readonly AMD_PACKAGES=("cpupower")
 
