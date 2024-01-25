@@ -3,10 +3,12 @@
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly TRUE=0
 readonly FALSE=1
+readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 
 # TODO
 # DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 # ROOTLESS SDDM UNDER WAYLAND
+# KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
 
 # GLOBAL VARS
 # tty_layout
@@ -228,17 +230,29 @@ install_optional_pkgs(){
 true
 }
 
+cpu_type(){
+    if [ -z "$is_intel" ];
+    then
+        ask "Is it an Intel CPU?"
+        is_intel="$?"
+    fi
+
+    return "$is_intel"
+}
+
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
 # Firtst, ask if it is AMD CPU: amd_pstate=guided
 # https://docs.kernel.org/admin-guide/pm/amd-pstate.html
 # https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
-    if [ -z "$is_intel" ];
-    then
-        ask "Is it an Intel CPU?"
-        is_intel="$?"
-    fi
+#     if [ -z "$is_intel" ];
+#     then
+#         ask "Is it an Intel CPU?"
+#         is_intel="$?"
+#     fi
+
+    cpu_type
 
     pacman --noconfirm -S powerdevil power-profiles-daemon python-gobject
 
@@ -327,7 +341,81 @@ true
 install_kvm(){
     # Aqui hay que crear el subvolumen libvirt
     # Aqui tambien hay que recordar instalar tpm
-    true
+#     Huge pages, iommu, nested virt, tpm, uefi,
+    echo "Installing KVM..."
+
+    lsmod | grep kvm
+    local -r MODPROBE_KVM="$?"
+
+    if [ "$MODPROBE_KVM" -gt "0" ];
+    then
+        echo "Error. Cant use KVM. Exiting..."
+        return "$FALSE"
+    fi
+
+    local modprobe_cpu
+    local cpu_string="kvm_amd"
+
+    cpu_type
+
+    [ "$is_intel" -eq "$TRUE" ] && cpu_string="kvm_intel"
+
+    lsmod | grep "$cpu_string"
+    modprobe_cpu="$?"
+
+    if [ "$modprobe_cpu" -gt "0" ];
+    then
+        echo "Error. Not loaded CPU specific KVM. Exiting."
+        return "$FALSE"
+    fi
+
+#     Checking if virtio modules are loaded
+    local virtio_status
+
+    lsmod | grep virtio
+    virtio_status="$?"
+
+    if [ "$virtio_status" -gt "0" ];
+    then
+        echo "Virtio modules are not loaded. Loading and creating them..."
+
+        truncate -s0 /etc/modules-load.d/virtio.conf
+
+        for i in "${VIRTIO_MODULES[@]}"
+        do
+            modprobe "$i"
+            echo "$i" >> /etc/modules-load.d/virtio.conf
+        done
+        unset i
+    fi
+
+#     Now to the nested virtualization
+    modprobe -r "$cpu_string"
+    modprobe "$cpu_string" nested=1
+
+#     Create file to enable nested virtualization
+    echo "options $cpu_string nested=1" > /etc/modprobe.d/nested_virt.conf
+
+#     QEMU part
+    pacman --noconfirm -S qemu-full qemu-block-gluster qemu-block-iscsi samba qemu-guest-agent qemu-user-static
+
+#     UEFI Support
+    echo "Installing packages for UEFI and TPM Support..."
+    pacman --noconfirm -S edk2-ovmf swtpm
+
+#     IOMMU
+    echo "Setting up IOMMU..."
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE"
+
+    if [ "$is_intel" -eq "$TRUE" ];
+    then
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE"
+    fi
+
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+    grub-mkconfig -o /boot/grub/grub.cfg
+
+#     ME QUEDA LIBVIRT
 }
 
 install_printer(){
@@ -451,10 +539,13 @@ main(){
         ask "Do you want to install a cpu scaler?" && install_cpu_scaler
     ask "Do you want to install the printer service?" && install_printer
     ask "Do you want to install a firewall?" && install_firewall
-    fi
 
 #     PENSAR EN SI PONER LA REGLA UDEV
     ask "Do you want to install NTFS driver?" && enable_ntfs
+    fi
+
+#     ME QUEDA LIBVIRT
+    ask "Do you want to install KVM?" && install_kvm
 
         # IN PROCESS
     # IMPORTANTE NO OLVIDAR
