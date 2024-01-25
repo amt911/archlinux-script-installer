@@ -5,7 +5,7 @@ readonly TRUE=0
 readonly FALSE=1
 
 # TODO
-# https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+# DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 # ROOTLESS SDDM UNDER WAYLAND
 
 # GLOBAL VARS
@@ -218,7 +218,10 @@ install_bluetooth(){
 }
 
 enable_ntfs(){
-    true
+    echo "Installing ntfs-3g..."
+    pacman --noconfirm -S ntfs-3g
+
+#     https://wiki.archlinux.org/title/NTFS
 }
 
 install_optional_pkgs(){
@@ -231,6 +234,26 @@ install_cpu_scaler(){
 # Firtst, ask if it is AMD CPU: amd_pstate=guided
 # https://docs.kernel.org/admin-guide/pm/amd-pstate.html
 # https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
+    if [ -z "$is_intel" ];
+    then
+        ask "Is it an Intel CPU?"
+        is_intel="$?"
+    fi
+
+    pacman --noconfirm -S powerdevil power-profiles-daemon python-gobject
+
+    echo "Enabling and starting service..."
+    systemctl enable power-profiles-daemon.service
+    systemctl start power-profiles-daemon.service
+
+    if [ "$is_intel" -eq "$FALSE" ];
+    then
+        echo "Adding AMD P-State driver..."
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE"
+        grub-mkconfig -o /boot/grub/grub.cfg
+    fi
+
+    echo "You need to reboot for changes to take effect"
 }
 
 enable_hw_acceleration(){
@@ -239,7 +262,19 @@ enable_hw_acceleration(){
 }
 
 install_firewall(){
-true
+    echo "Installing firewall..."
+    pacman --noconfirm -S ufw gufw
+
+    echo "Enabling and starting ufw.service..."
+    systemctl enable ufw.service
+    systemctl start ufw.service
+
+    ufw enable
+
+#     https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
+    ufw default deny
+    ufw allow from 192.168.0.0/24
+    ufw limit ssh
 }
 
 install_xorg(){
@@ -296,7 +331,18 @@ install_kvm(){
 }
 
 install_printer(){
-true
+    echo "Installing printer service..."
+
+    pacman --noconfirm -S cups cups-pdf
+
+    echo "Enabling CUPS socket..."
+    systemctl enable cups.socket
+
+    echo "Installing scanner (SANE) packages..."
+    pacman --noconfirm -S sane
+    pacman --noconfirm --asdeps -S sane-airscan
+
+    ask "Do you want to install Simple Scan?" && pacman --noconfirm -S simple-scan
 }
 
 install_ms_fonts(){
@@ -394,7 +440,6 @@ main(){
 
         # CHECK INSTALL_XORG ON LAPTOP. 
         ask "Do you want to install Xorg and graphics driver?" && install_xorg
-    fi
 
     if [ ! -f "/root/after_install.tmp" ];
     then
@@ -403,6 +448,14 @@ main(){
         # CHECK FOR ROOTLESS WAYLAND!!!
         rootless_kde
     fi
+        ask "Do you want to install a cpu scaler?" && install_cpu_scaler
+    ask "Do you want to install the printer service?" && install_printer
+    ask "Do you want to install a firewall?" && install_firewall
+    fi
+
+#     PENSAR EN SI PONER LA REGLA UDEV
+    ask "Do you want to install NTFS driver?" && enable_ntfs
+
         # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
