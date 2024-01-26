@@ -415,7 +415,41 @@ install_kvm(){
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
     grub-mkconfig -o /boot/grub/grub.cfg
 
-#     ME QUEDA LIBVIRT
+#     Libvirt installation
+    echo "Installing libvirt..."
+
+    pacman -S libvirt
+    pacman -S --asdeps iptables-nft dnsmasq openbsd-netcat dmidecode
+    pacman -S virt-manager
+
+#     Setting up libvirt authentication
+    local more_users="$TRUE"
+    local user
+    local users_array=()
+
+    while [ "$more_users" -eq "$TRUE" ]
+    do
+        echo -n "Type a user to add to libvirt group: "
+        read -r user
+
+        users_array=("${users_array[@]}" "$user")
+
+        ask "Do you want to add another user?"
+        more_users="$?"
+    done
+
+    for i in "${users_array[@]}"
+    do
+        echo "Adding $i"
+        gpasswd -a "$i" libvirt
+    done
+    unset i
+
+    echo "Starting daemons..."
+    systemctl start libvirtd.service
+    systemctl start virtlogd.service
+
+    systemctl enable libvirtd.service
 }
 
 install_printer(){
@@ -544,9 +578,12 @@ main(){
     ask "Do you want to install NTFS driver?" && enable_ntfs
     fi
 
-#     ME QUEDA LIBVIRT
+#     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
     ask "Do you want to install KVM?" && install_kvm
 
+
+    echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
+    echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
         # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
