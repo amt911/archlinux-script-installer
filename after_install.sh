@@ -4,11 +4,13 @@ readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly TRUE=0
 readonly FALSE=1
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
-
+readonly KVM_SUBVOL=("@var_lib_libvirt" "/mnt/var/lib/libvirt")
 # TODO
 # DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 # ROOTLESS SDDM UNDER WAYLAND
 # KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
+# add_sentence_end_quote y el otro. Junstarlos en uno solo.
+# PONER EN LOS PAQUETES DOSFSTOOLS
 
 # GLOBAL VARS
 # tty_layout
@@ -70,6 +72,24 @@ add_sentence_end_quote(){
     local quote='\"'
 
     [ "$4" -eq "$FALSE" ] && quote="'"
+
+
+    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
+}
+
+# $1: Pattern to find
+# $2: Text to add
+# $3: filename
+# $4: end quote
+# note: If you need to use "/", the put it like \/
+add_sentence_2(){
+    # sed "/^example=/s/\"$/ adios\"/" example
+
+    local -r PATTERN="$1"
+    local -r NEW_TEXT="$2"
+    local -r FILENAME="$3"
+    local quote="$4"
+
 
 
     sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
@@ -240,6 +260,11 @@ cpu_type(){
     return "$is_intel"
 }
 
+check_machine(){
+    ask "Is this machine a laptop?"
+    is_laptop="$?"
+}
+
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
@@ -270,9 +295,56 @@ install_cpu_scaler(){
     echo "You need to reboot for changes to take effect"
 }
 
+# This function needs a reboot
 enable_hw_acceleration(){
     # To implement on a real machine
-    true
+    echo "Enabling hardware acceleration..."
+
+    cpu_type
+    check_machine
+
+#     Diagnostic tool
+    pacman --noconfirm -S libva-utils vdpauinfo
+
+#     Installation of NVIDIA codecs by default.
+    echo "Installing codecs for NVIDIA GPU..."
+    pacman --noconfirm -S libva-nvidia-driver
+
+    echo "Checking if VA-API works on NVIDIA..."
+
+    if ! vainfo;
+    then
+        echo "Creating environment variables..."
+
+        if [ "$is_laptop" -eq "$TRUE" ];
+        then
+            echo "
+#Mi config
+if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
+then
+    export LIBVA_DRIVER_NAME=nvidia
+    export MOZ_DISABLE_RDD_SANDBOX=1
+    export NVD_BACKEND=direct
+fi" >> /etc/profile
+
+        else
+            echo "LIBVA_DRIVER_NAME=nvidia" >> /etc/environment
+            echo "NVD_BACKEND=direct" >> /etc/environment
+            echo "MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
+        fi
+
+    else
+        echo "Working correctly, there is nothing to do."
+    fi
+
+
+    if [ "$is_laptop" -eq "$TRUE" ];
+    then
+        echo "Installing VA-API for Intel CPU..."
+        pacman --noconfirm -S intel-media-driver libvdpau-va-gl
+    fi
+
+    echo "Please reboot your system for changes to take effect."
 }
 
 install_firewall(){
@@ -509,7 +581,126 @@ install_yay(){
 }
 
 enable_crypt_keyfile(){
-    true
+    echo "Enabling keyfile at boot..."
+
+    ask "If your pendrive inserted? If not, insert it now."
+
+    local drive
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        lsblk
+        echo -n "Select drive: "
+        read -r drive
+
+        ask "You have selected $drive. Is that OK?"
+        is_done="$?"
+    done
+
+    if ask "Do you want to reformat/repartition drive?";
+    then
+        cfdisk "$drive"
+        sleep 2
+    fi
+
+    is_done="$FALSE"
+    local part
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        lsblk
+        echo -n "Select partition: "
+        read -r part
+
+        ask "You have selected $part. Is that OK?"
+        is_done="$?"
+    done
+
+    local fs_type
+    local selected_module
+
+    local is_wrong="$FALSE"
+
+    is_done="$FALSE"
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo "
+Select one of the following options:
+    1) ext4
+    2) fat32
+    3) btrfs"
+
+        read -r fs_type
+        case $fs_type in
+            "ext4"|"1")
+                is_wrong="$FALSE"
+                selected_module="ext4"
+                ;;
+            "fat32"|"2")
+                is_wrong="$FALSE"
+                selected_module="vfat"
+                ;;
+            "btrfs"|"3")
+                is_wrong="$FALSE"
+                selected_module="btrfs"
+                ;;
+            *)
+                is_wrong="$TRUE"
+                echo "Wrong filesystem."
+                ;;
+        esac
+
+        if [ "$is_wrong" -eq "$FALSE" ];
+        then
+            ask "You have selected $selected_module. Is that OK?"
+            is_done="$?"
+        fi
+    done
+
+    echo "Formatting partition..."
+
+    case "$selected_module" in
+        "ext4")
+            mkfs.ext4 "$part"
+            ;;
+        "vfat")
+            pacman --noconfirm -S dosfstools
+            mkfs.fat -F32 "$part"
+            ;;
+        "btrfs")
+            mkfs.btrfs -L pen "$part"
+            ;;
+        *)
+            echo "Unknown error."
+            return 1
+            ;;
+    esac
+
+#     Asking for the encrypted partition
+    is_done="$FALSE"
+    local sys_part
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        lsblk
+        echo -n "Type encrypted partition: "
+        read -r sys_part
+
+        ask "You have selected $disk_part. Is that correct?"
+        is_done="$?"
+    done
+
+#     Creating the keyfile
+    mount $part /mnt
+    dd bs=512 count=4 if=/dev/random of="$part/keyfile" iflag=fullblock
+    cryptsetup luksAddKey "$sys_part" "$part/keyfile"
+
+#     Adding the modules on mkinitcpio
+    add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+    mkinitcpio -P
+
+
+
+    local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
 }
 
 # CHECK FOR ROOTLESS WAYLAND!!!
@@ -533,6 +724,11 @@ rootless_kde(){
 
 cleanup(){
     rm -rf /root/after_install.tmp
+}
+
+is_encrypted(){
+    ask "Is the system encrypted?"
+    has_encryption="$?"
 }
 
 # Laptop specific functions
@@ -576,14 +772,21 @@ main(){
 
 #     PENSAR EN SI PONER LA REGLA UDEV
     ask "Do you want to install NTFS driver?" && enable_ntfs
+
+    #     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
+        ask "Do you want to install KVM?" && install_kvm
+        ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
     fi
 
-#     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
-    ask "Do you want to install KVM?" && install_kvm
+    is_encrypted
 
+#     CONTINUAR CON LA GUIA
+    [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
 
+    echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
+    echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
         # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
