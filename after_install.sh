@@ -4,13 +4,13 @@ readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly TRUE=0
 readonly FALSE=1
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
-readonly KVM_SUBVOL=("@var_lib_libvirt" "/mnt/var/lib/libvirt")
 # TODO
 # DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 # ROOTLESS SDDM UNDER WAYLAND
 # KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
 # add_sentence_end_quote y el otro. Junstarlos en uno solo.
 # PONER EN LOS PAQUETES DOSFSTOOLS
+# enable_crypt_keyfile -> Comprobar antes si existe el modulo en mkinitcpio
 
 # GLOBAL VARS
 # tty_layout
@@ -58,10 +58,16 @@ ask(){
     return "$res"
 }
 
+redo_grub(){
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+    grub-mkconfig -o /boot/grub/grub.cfg
+}
+
 # $1: Pattern to find
 # $2: Text to add
 # $3: filename
 # $4: is double quote (TRUE/FALSE)
+# $5: Do it inline?
 # note: If you need to use "/", the put it like \/
 add_sentence_end_quote(){
     # sed "/^example=/s/\"$/ adios\"/" example
@@ -73,8 +79,15 @@ add_sentence_end_quote(){
 
     [ "$4" -eq "$FALSE" ] && quote="'"
 
+    local is_inline="$5"
 
-    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
+    if [ "$is_inline" -eq "$TRUE" ];
+    then
+        sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
+    else
+        sed "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
+    fi
+
 }
 
 # $1: Pattern to find
@@ -95,8 +108,24 @@ add_sentence_2(){
     sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
 }
 
+# $1: Option (or options, but ending without comma)
+# $2: File location
+# $3 ($TRUE/$FALSE): Do it inline?
+add_option_inside_luks_options(){
+    local -r OPTION="$1"
+    local -r FILE="$2"
+    local -r IS_INLINE="$3"
+
+    if [ "$IS_INLINE" -eq "$TRUE" ];
+    then
+        sed -i "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
+    else
+        sed "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
+    fi
+}
+
 enable_reisub(){
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/etc/default/grub" "$TRUE"
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/etc/default/grub" "$TRUE" "$TRUE"
 
     grub-mkconfig -o /boot/grub/grub.cfg
 }
@@ -113,7 +142,7 @@ enable_trim(){
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE"
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
         grub-mkconfig -o /boot/grub/grub.cfg 
     fi
 }
@@ -288,7 +317,7 @@ install_cpu_scaler(){
     if [ "$is_intel" -eq "$FALSE" ];
     then
         echo "Adding AMD P-State driver..."
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE"
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE" "$TRUE"
         grub-mkconfig -o /boot/grub/grub.cfg
     fi
 
@@ -477,11 +506,11 @@ install_kvm(){
 
 #     IOMMU
     echo "Setting up IOMMU..."
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE"
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
 
     if [ "$is_intel" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE"
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
 
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -540,17 +569,115 @@ install_printer(){
 }
 
 install_ms_fonts(){
-true
+    echo "Installing Microsoft Fonts..."
+
+    local is_7z_installed="$TRUE"
+
+    pacman -Qi p7zip
+    is_7z_installed="$?"
+
+    [ "$is_7z_installed" -eq "$FALSE" ] && pacman --noconfirm -S p7zip
+
+#     In case the image is in another partition
+    ask "Is the Windows ISO on another drive?"
+    local -r OTHER_DRIVE="$?"
+    local drive
+    local is_done="$FALSE"
+
+    if [ "$OTHER_DRIVE" -eq "$TRUE" ];
+    then
+        while [ "$is_done" -eq "$FALSE" ]
+        do
+            lsblk
+            echo -n "Please type partition: "
+            read -r drive
+
+            ask "You have selected $drive. Is that correct?"
+            is_done="$?"
+        done
+    fi
+
+    mount "$drive" /mnt -o ro,noexec
+
+    local location
+    is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo -n "Please type location: "
+        read -r location
+
+        if [ -f "$location" ];
+        then
+            ask "Image exists. Do you want to continue?"
+            is_done="$?"
+        else
+            echo "File does not exist at this location: $location"
+        fi
+    done
+
+#     Now we need to copy the iso to another location
+    echo "Copying ISO to another folder..."
+    cp "$location" /root
+
+#     We now unmount the drive since we dont need it anymore
+    umount /mnt
+
+#     We extract the contents of the ISO
+    local -r ISO_LOCATION=$(echo "$location" | awk 'BEGIN{ OFS=FS="/" } { print "/root",$NF }')
+    7z e "$ISO_LOCATION" sources/install.wim
+    7z e install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -ofonts/
+
+    mkdir -p /usr/local/share/fonts/WindowsFonts
+    cp /root/fonts/* /usr/local/share/fonts/WindowsFonts/
+    chmod 644 /usr/local/share/fonts/WindowsFonts/*
+
+    fc-cache --force
+    fc-cache-32 --force
+
+    [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
 
 install_lsd(){
     # Aqui se debe instalar lsd y la fuente nerd
-    true
+    pacman --noconfirm -S lsd ttf-hack-nerd
 }
 
 btrfs_snapshots(){
     # Aqui debe ir el hook de pacman
-    true
+    echo "Installing snapper and snap-pac..."
+
+    pacman --noconfirm -S snapper snap-pac
+
+    snapper -c root create-config /
+
+    echo "Deleting default snapper layout..."
+
+    btrfs subvolume delete /.snapshots
+    mkdir /.snapshots
+
+    local part
+
+    echo -n "Type MOUNTED root partition: "
+    read -r part
+
+    mount "$part" /mnt -o compress-force=zstd
+    btrfs subvolume create /mnt/@snapshots
+
+    echo "$part /.snapshots btrfs compress-force=zstd,subvol=@snapshots 0 0" >> /etc/fstab
+
+    mount "$part" "/.snapshots" -o compress-force=zstd,subvol=@snapshots
+
+    chmod 750 /.snapshots
+
+    echo "Enabling snapper timers..."
+    systemctl enable snapper-timeline.timer
+    systemctl enable snapper-cleanup.timer
+    systemctl enable snapper-boot.timer
+
+    systemctl start snapper-timeline.timer
+    systemctl start snapper-cleanup.timer
+    systemctl start snapper-boot.timer
 }
 
 disable_ssh_service(){
@@ -608,7 +735,7 @@ enable_crypt_keyfile(){
     local part
     while [ "$is_done" -eq "$FALSE" ]
     do
-        lsblk
+        lsblk "$drive"
         echo -n "Select partition: "
         read -r part
 
@@ -682,25 +809,47 @@ Select one of the following options:
     while [ "$is_done" -eq "$FALSE" ]
     do
         lsblk
-        echo -n "Type encrypted partition: "
+        echo -n "Type encrypted root partition: "
         read -r sys_part
 
-        ask "You have selected $disk_part. Is that correct?"
+        ask "You have selected $sys_part. Is that correct?"
         is_done="$?"
     done
 
 #     Creating the keyfile
     mount $part /mnt
-    dd bs=512 count=4 if=/dev/random of="$part/keyfile" iflag=fullblock
-    cryptsetup luksAddKey "$sys_part" "$part/keyfile"
+    dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
+    cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
 
 #     Adding the modules on mkinitcpio
     add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
 
+#     We need to add a new kernel parameter.
+# First, we check if rd.luks.options exists.
+    if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
+    then
+#         If the entry exists, we add a new parameter inside
+        echo "The entry exists. Adding new option."
+        add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
+    else
+#         If the entry does not exist, we add rd.luks.options directly.
+        echo "The entry does not exist. Adding new option"
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
+    fi
 
-    local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
+#   Now we need to add the key UUID to the kernel parameter.
+    local -r PEN_UUID=$(blkid -s UUID -o value "$part")
+    local -r ROOT_UUID=$(blkid -s UUID -o value "$sys_part")
+
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=keyfile:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
+
+#     We regenerate the grub config
+    redo_grub
+
+#     Finally, unmount the pendrive
+    umount /mnt
 }
 
 # CHECK FOR ROOTLESS WAYLAND!!!
@@ -776,14 +925,19 @@ main(){
     #     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
         ask "Do you want to install KVM?" && install_kvm
         ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+
+        is_encrypted
+
+        [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+
+        ask "Do you want to install lsd and hack nerd font?" && install_lsd
+        ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
     fi
 
-    is_encrypted
-
-#     CONTINUAR CON LA GUIA
-    [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+    ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
 
     echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
+    echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
