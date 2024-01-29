@@ -1,8 +1,8 @@
 #!/bin/bash
 
+source common_functions.sh
+
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
-readonly TRUE=0
-readonly FALSE=1
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 # TODO
 # DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
@@ -24,104 +24,9 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # is_intel
 # is_laptop
 
-# Asks for something to do in this script.
-# 
-# $1: Question to be displayed. It should not have a colon nor space at the end since it is appended.
-#
-# return: 0 if yes, 1 if no in $?.
-ask(){
-    local -r QUESTION="$1"
-    local done="$FALSE"
-    local ans
-    local res
-
-    while [ "$done" -eq "$FALSE" ]
-    do
-        echo -n "$QUESTION (y/n): "
-        read -r ans
-
-        case $ans in
-            y|Y|[yY][eE][sS] )
-                res="$TRUE"
-                done="$TRUE"
-                ;;
-            n|N|[nN][oO] )
-                res="$FALSE"
-                done="$TRUE"
-                ;;
-            * )
-                echo "other case"
-                ;;
-        esac
-    done
-
-    return "$res"
-}
-
 redo_grub(){
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
     grub-mkconfig -o /boot/grub/grub.cfg
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: is double quote (TRUE/FALSE)
-# $5: Do it inline?
-# note: If you need to use "/", the put it like \/
-add_sentence_end_quote(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote='\"'
-
-    [ "$4" -eq "$FALSE" ] && quote="'"
-
-    local is_inline="$5"
-
-    if [ "$is_inline" -eq "$TRUE" ];
-    then
-        sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    else
-        sed "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    fi
-
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: end quote
-# note: If you need to use "/", the put it like \/
-add_sentence_2(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote="$4"
-
-
-
-    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-}
-
-# $1: Option (or options, but ending without comma)
-# $2: File location
-# $3 ($TRUE/$FALSE): Do it inline?
-add_option_inside_luks_options(){
-    local -r OPTION="$1"
-    local -r FILE="$2"
-    local -r IS_INLINE="$3"
-
-    if [ "$IS_INLINE" -eq "$TRUE" ];
-    then
-        sed -i "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
-    else
-        sed "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
-    fi
 }
 
 enable_reisub(){
@@ -219,8 +124,7 @@ enable_multilib(){
 
     pacman --noconfirm -Syu
     
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 
     echo "Check changes:"
     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /etc/pacman.conf
@@ -513,8 +417,7 @@ install_kvm(){
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
 
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 
 #     Libvirt installation
     echo "Installing libvirt..."
@@ -703,8 +606,7 @@ install_yay(){
     sudo -S -i -u "$USER" yay -Syu --devel
     sudo -S -i -u "$USER" yay -Y --devel --save 
 
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 }
 
 enable_crypt_keyfile(){
@@ -817,7 +719,7 @@ Select one of the following options:
     done
 
 #     Creating the keyfile
-    mount $part /mnt
+    mount "$part" /mnt
     dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
     cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
 
