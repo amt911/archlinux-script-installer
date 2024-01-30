@@ -2,6 +2,9 @@
 
 source common_functions.sh
 
+# Source var files
+[ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 # TODO
@@ -11,18 +14,6 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # add_sentence_end_quote y el otro. Junstarlos en uno solo.
 # PONER EN LOS PAQUETES DOSFSTOOLS
 # enable_crypt_keyfile -> Comprobar antes si existe el modulo en mkinitcpio
-
-# GLOBAL VARS
-# tty_layout
-# has_swap
-# swap_part
-# boot_part
-# root_part
-# has_encryption
-# DM_NAME
-# machine_name
-# is_intel
-# is_laptop
 
 redo_grub(){
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -538,6 +529,9 @@ install_ms_fonts(){
     fc-cache --force
     fc-cache-32 --force
 
+    echo "Deleting Windows image and tmp directories..."
+    rm -r "$ISO_LOCATION" "/root/install.wim /root/fonts"
+
     [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
 
@@ -723,8 +717,9 @@ Select one of the following options:
     dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
     cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
 
-#     Adding the modules on mkinitcpio
-    add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+#     Adding the modules on mkinitcpio, only if they are not already there
+    echo "Adding $selected_module to mkinicptio.conf..."
+    grep -E "^MODULES=\(.*vfat.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
 
@@ -848,4 +843,4 @@ main(){
     # disable_ssh_service
 }
 
-main "$@"
+# main "$@"

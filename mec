@@ -1,0 +1,3 @@
+#!/bin/bash
+
+has_swap="0"

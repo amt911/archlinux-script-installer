@@ -15,18 +15,18 @@ readonly VAR_FILE_LOC="/root/$VAR_FILENAME"
 # GLOBAL VARS
 # 
 # tty_layout
-# has_swap
-# is_zram
+# has_swap=true/false
+# is_zram=true/false
 # swap_part
 # boot_part
 # root_part
-# has_encryption
+# has_encryption=true/false
 # DM_NAME
 # machine_name
-# is_intel
-# is_laptop
+# is_intel=true/false
+# is_laptop=true/false
+# gpu_type=amd/intel/nvidia
 # 
-
 
 
 # Asks for something to do in this script.
@@ -150,6 +150,65 @@ fi
     then
         awk 'BEGIN{OFS=FS="="} /'"$VAR_NAME"'/{$2="\"'"$VALUE"'\""};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
     else
-        echo "$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
+        echo -e "\n$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
     fi
 }
+
+
+readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type")
+readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu")
+readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): ")
+
+# $1 (optiona): Variable file location. If not set, uses $VAR_FILE_LOC
+ask_global_vars(){
+    local var_file="$VAR_FILE_LOC"
+    local tmp
+
+    [ "$#" -gt "0" ] && var_file="$1"
+
+    # grep -E
+
+    for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
+    do
+        if ! grep -E "^${GLOBAL_VARS_NAME[i]}=" "$var_file" > /dev/null;
+        then
+            # echo "No existe ${GLOBAL_VARS_NAME[i]}"
+            case ${VARS_TYPE[i]} in
+                "ask")
+                    ask "${VARS_QUESTIONS[i]}"
+                    tmp="$?"
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
+                    ;;
+
+# AQUI PREGUNTAR VARIAS VECES HASTA ESTAR SEGURO
+                # "type")
+                #     echo -n "${VARS_QUESTIONS[i]}"
+                #     read -r tmp
+                #     add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
+                #     ;;
+                *)
+                    echo "WIP"
+                    ;;
+            esac
+        fi
+        # echo "${GLOBAL_VARS_NAME[i]} -> ${VARS_QUESTIONS[i]} -> ${VARS_TYPE[i]}"
+    done
+    unset i
+
+    # echo "${#GLOBAL_VARS_NAME[@]} -> ${#VARS_QUESTIONS[@]} -> ${#VARS_TYPE[@]}"
+    
+# has_swap=true/false
+# is_zram=true/false
+# swap_part
+# boot_part
+# root_part
+# has_encryption=true/false
+# DM_NAME
+# machine_name
+# is_intel=true/false
+# is_laptop=true/false
+# gpu_type=amd/intel/nvidia
+}
+
+
+ask_global_vars "mec"
