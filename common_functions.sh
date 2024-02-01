@@ -150,7 +150,13 @@ fi
     then
         awk 'BEGIN{OFS=FS="="} /'"$VAR_NAME"'/{$2="\"'"$VALUE"'\""};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
     else
-        echo -e "\n$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
+        # Checks if file ends in newline to avoid putting the new variable on the same line
+        local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
+        local first_char=""
+
+        [ "$ENDS_NEWLINE" -eq "0" ] && first_char="\n"
+
+        echo -e "$first_char$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
     fi
 }
 
@@ -166,7 +172,8 @@ ask_global_vars(){
 
     [ "$#" -gt "0" ] && var_file="$1"
 
-    # grep -E
+    local is_done="$FALSE"
+    local ask_yes_no
 
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
@@ -175,27 +182,65 @@ ask_global_vars(){
             # echo "No existe ${GLOBAL_VARS_NAME[i]}"
             case ${VARS_TYPE[i]} in
                 "ask")
-                    ask "${VARS_QUESTIONS[i]}"
-                    tmp="$?"
+                    while [ "$is_done" -eq "$FALSE" ]
+                    do
+                        ask "${VARS_QUESTIONS[i]}"
+                        tmp="$?"
+
+                        case $tmp in
+                        "$TRUE")
+                            ask_yes_no=yes
+                            ;;
+                        "$FALSE")
+                            ask_yes_no=no
+                            ;;
+                        *)
+                            ask_yes_no="unknown error"
+                            ;;
+                        esac
+
+                        ask "You have selected $ask_yes_no. Is that correct?"
+                        is_done="$?"
+                    done
+
                     add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
                     ;;
 
-# AQUI PREGUNTAR VARIAS VECES HASTA ESTAR SEGURO
-                # "type")
-                #     echo -n "${VARS_QUESTIONS[i]}"
-                #     read -r tmp
-                #     add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
-                #     ;;
+                "type")
+                    while [ "$is_done" -eq "$FALSE" ]
+                    do
+                        echo -n "${VARS_QUESTIONS[i]}"
+                        read -r tmp
+
+                        ask "You have selected $tmp. Is that correct?"
+                        is_done="$?"
+                    done
+
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
+                    ;;
+
+                "DM_NAME")
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')" "$var_file"
+                    ;;
+
+                "MACHINE_NAME")
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$(cat /etc/hostname)" "$var_file"
+                    ;;
+                
+                "gpu")
+                    echo "GPU TYPE"
+                    ;;
+                    
                 *)
                     echo "WIP"
                     ;;
             esac
+
+            is_done="$FALSE"
         fi
-        # echo "${GLOBAL_VARS_NAME[i]} -> ${VARS_QUESTIONS[i]} -> ${VARS_TYPE[i]}"
     done
     unset i
 
-    # echo "${#GLOBAL_VARS_NAME[@]} -> ${#VARS_QUESTIONS[@]} -> ${#VARS_TYPE[@]}"
     
 # has_swap=true/false
 # is_zram=true/false
@@ -209,6 +254,5 @@ ask_global_vars(){
 # is_laptop=true/false
 # gpu_type=amd/intel/nvidia
 }
-
 
 ask_global_vars "mec"
