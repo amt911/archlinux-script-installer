@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # testing commands for live environment: passwd
 # set static ip to archiso: ip a add 192.168.56.101/24 broadcast + dev enp0s8
@@ -157,7 +157,8 @@ mkfs_partitions(){
 
     mount "/dev/mapper/$DM_NAME" "/mnt" -o compress-force=zstd
 
-    for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
+    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
+    for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
         btrfs subvolume create "/mnt/${BTRFS_SUBVOL[i]}"
     done
@@ -165,7 +166,8 @@ mkfs_partitions(){
 
     umount /mnt
 
-    for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
+    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
+    for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
         mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
     done   
@@ -246,7 +248,7 @@ generate_locales(){
                 if grep -E "#${locale}  $" "/mnt/etc/locale.gen" > /dev/null;
                 then
                     echo "Adding $locale to the list"
-                    selected_locales=("$selected_locales[@]" $locale)
+                    selected_locales=("${selected_locales[@]}" "$locale")
                 else
                     echo "$locale not found. Not added to the list."
                 fi
@@ -374,7 +376,7 @@ install_bootloader(){
     # /etc/default/grub
     sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
-    local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
+    local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
     add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
 

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# TODO
+# Mejorar la logica cuando hay array en add_global_var_to_file
+
 # Just source the script once
 if [ "$COMMON_FUNCTIONS" != yes ]; then
     COMMON_FUNCTIONS=yes
@@ -46,7 +49,7 @@ ask(){
         read -r ans
 
         case $ans in
-            y|Y|[yY][eE][sS] )
+            y|Y|[yY][eE][sS]|"" )
                 res="$TRUE"
                 done="$TRUE"
                 ;;
@@ -124,14 +127,25 @@ add_option_inside_luks_options(){
     fi
 }
 
-# $1: Variable name
+# $1: Variable name. If it is an array, pass just the variable name
 # $2: Value. Can be overwritten by another call
 # $3: File location
+# $4 (optional): Is the value an array? Defaults to false
 # return: $TRUE if written to file, $FALSE if it already exists on file
 add_global_var_to_file(){
     local -r VAR_NAME="$1"
-    local -r VALUE="$2"
     local -r FILE_LOC="$3"
+    local is_array="$FALSE"
+
+    [ "$#" -eq "4" ] && is_array="$4"
+
+    if [ "$is_array" -eq "$TRUE" ];
+    then
+        local -n VALUE="$2"
+        echo "valor arr -> ${VALUE[*]} -> $is_array"
+    else
+        local -r VALUE="$2"
+    fi
 
     if [ ! -f "$FILE_LOC" ];
     then
@@ -148,7 +162,12 @@ fi
 
     if grep "$VAR_NAME" "$FILE_LOC" > /dev/null;
     then
-        awk 'BEGIN{OFS=FS="="} /'"$VAR_NAME"'/{$2="\"'"$VALUE"'\""};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
+        if [ "$is_array" -eq "$FALSE" ];
+        then
+            awk 'BEGIN{OFS=FS="="} /^'"$VAR_NAME"'=/{$NF="\"'"$VALUE"'\""};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
+        else
+            awk 'BEGIN{OFS=FS="="} /^'"$VAR_NAME"'=/{$NF="('"${VALUE[*]}"')"};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
+        fi
     else
         # Checks if file ends in newline to avoid putting the new variable on the same line
         local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
@@ -156,7 +175,16 @@ fi
 
         [ "$ENDS_NEWLINE" -eq "0" ] && first_char="\n"
 
-        echo -e "$first_char$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
+        if [ "$is_array" -eq "$FALSE" ];
+        then
+            echo "noooo"
+            echo -e "$first_char$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
+        else
+            echo "he entrado aqui"
+            echo -e "$first_char$VAR_NAME=(${VALUE[*]})" >> "$FILE_LOC"
+        fi
+
+
     fi
 }
 
@@ -165,10 +193,30 @@ readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_pa
 readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu")
 readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): ")
 
+
+# $1: Element
+# $2: Array. It must be passed by its variable name, without $ sign and without double quotes
+# return: $TRUE if the element is inside the array, $FALSE in other case
+is_element_in_array(){
+    # https://stackoverflow.com/questions/10953833/passing-multiple-distinct-arrays-to-a-shell-function
+    local -r ELEMENT="$1"
+    local -n _ARR="$2"
+
+    for i in "${_ARR[@]}"
+    do
+        [ "$i" = "$ELEMENT" ] && return $TRUE
+    done
+
+    echo "element: $ELEMENT -> array:" "${_ARR[@]}"
+
+    return "$FALSE"
+}
+
 # $1 (optiona): Variable file location. If not set, uses $VAR_FILE_LOC
 ask_global_vars(){
     local var_file="$VAR_FILE_LOC"
     local tmp
+    local aux_arr
 
     [ "$#" -gt "0" ] && var_file="$1"
 
@@ -228,7 +276,59 @@ ask_global_vars(){
                     ;;
                 
                 "gpu")
-                    echo "GPU TYPE"
+                    aux_arr=()
+                    while [ "$is_done" -eq "$FALSE" ]
+                    do
+                        echo "GPU list:
+    1) amd
+    2) nvidia
+    3) intel
+"
+                        echo -n "Please select GPU (empty to finish): "
+                        read -r tmp
+
+                        case $tmp in
+                            "1"|[aA][mM][dD])
+                                is_element_in_array "amd" aux_arr
+                                if [ "$?" -eq "$FALSE" ];
+                                then
+                                    echo "amd"
+                                    aux_arr=("${aux_arr[@]}" "amd")
+                                fi
+                                ;;
+
+                            "2"|[nN][vV][iI][dD][iI][aA])
+                                is_element_in_array "nvidia" aux_arr
+                                if [ "$?" -eq "$FALSE" ];
+                                then
+                                    echo "nvidia"
+                                    aux_arr=("${aux_arr[@]}" "nvidia")
+                                fi                            
+                                ;;
+
+                            "3"|[iI][nN][tT][eE][lL])
+                                is_element_in_array "intel" aux_arr
+                                if [ "$?" -eq "$FALSE" ];
+                                then
+                                    echo "intel"
+                                    aux_arr=("${aux_arr[@]}" "intel")
+                                fi
+                                ;;
+
+                            "")
+                                echo "These are the selected GPU(s): ${aux_arr[*]}"
+                                ask "Are these correct?"
+                                is_done="$?"
+                                echo "$is_done"
+                                ;;
+                            *)
+                                echo "Unknown option"
+                                ;;                      
+                        esac
+                        echo "$is_done"
+                    done
+                    echo "paso por aqui -> ${aux_arr[*]}"
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "aux_arr" "$var_file" "$TRUE"
                     ;;
                     
                 *)
@@ -255,4 +355,26 @@ ask_global_vars(){
 # gpu_type=amd/intel/nvidia
 }
 
+fn(){
+    if [ "$#" -eq "3" ];
+    then
+        local -r a="$1"
+    else
+        local -n a="$1"
+    fi
+
+    local -r b="$2"
+
+    echo "$a -> $b"
+}
+
+arrr=(amd intel nvidia qualcomm cummins)
+varr="como 33"
+
+fn "varr halo" "hola" "medc"
+fn "varr" "hola"
+
 ask_global_vars "mec"
+
+
+# "Broken. Fix add_global_var_to_file"

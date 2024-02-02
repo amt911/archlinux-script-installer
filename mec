@@ -1,3 +1,12 @@
 #!/bin/bash
 
-has_swap="0"
+has_swap=(amd intel)
+is_zram="0"
+swap_part="/dev/mec"
+boot_part="root"
+root_part="/dev/man/nanan/como 33"
+has_encryption="0"
+DM_NAME="como 33"
+machine_name="DESKTOP-HE6D7DM"
+is_intel="1"
+is_laptop="0"

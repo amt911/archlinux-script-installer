@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Just source the script once
+if [ "$VARS" != yes ]; then
+    VARS=yes
+else
+    return 0
+fi
+
+has_swap="amd"
