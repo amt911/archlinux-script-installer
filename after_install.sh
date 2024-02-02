@@ -2,9 +2,6 @@
 
 source common_functions.sh
 
-# Source var files
-[ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
-
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 # TODO
@@ -27,11 +24,13 @@ enable_reisub(){
 }
 
 enable_trim(){
-    if [ -z "$has_encryption" ];
-    then
-        ask "Does it have encryption?"
-        has_encryption="$?"
-    fi
+    # if [ -z "$has_encryption" ];
+    # then
+    #     ask "Does it have encryption?"
+    #     has_encryption="$?"
+    # fi
+
+    echo "##################################################################################################"
 
     pacman --noconfirm -S util-linux
     systemctl enable fstrim.timer
@@ -174,34 +173,12 @@ install_optional_pkgs(){
 true
 }
 
-cpu_type(){
-    if [ -z "$is_intel" ];
-    then
-        ask "Is it an Intel CPU?"
-        is_intel="$?"
-    fi
-
-    return "$is_intel"
-}
-
-check_machine(){
-    ask "Is this machine a laptop?"
-    is_laptop="$?"
-}
-
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
-# Firtst, ask if it is AMD CPU: amd_pstate=guided
+# Firtst, ask if it is AMD CPU: amd_pstate=active
 # https://docs.kernel.org/admin-guide/pm/amd-pstate.html
 # https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
-#     if [ -z "$is_intel" ];
-#     then
-#         ask "Is it an Intel CPU?"
-#         is_intel="$?"
-#     fi
-
-    cpu_type
 
     pacman --noconfirm -S powerdevil power-profiles-daemon python-gobject
 
@@ -224,9 +201,6 @@ enable_hw_acceleration(){
     # To implement on a real machine
     echo "Enabling hardware acceleration..."
 
-    cpu_type
-    check_machine
-
 #     Diagnostic tool
     pacman --noconfirm -S libva-utils vdpauinfo
 
@@ -243,7 +217,7 @@ enable_hw_acceleration(){
         if [ "$is_laptop" -eq "$TRUE" ];
         then
             echo "
-#Mi config
+# Mi config
 if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
 then
     export LIBVA_DRIVER_NAME=nvidia
@@ -288,8 +262,7 @@ install_firewall(){
 }
 
 install_xorg(){
-    ask "Is this machine a laptop?"
-    is_laptop="$?"
+    echo "##################################################################################################"
 
 
     pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
@@ -352,8 +325,7 @@ install_kvm(){
     local modprobe_cpu
     local cpu_string="kvm_amd"
 
-    cpu_type
-
+echo "##################################################################################################"
     [ "$is_intel" -eq "$TRUE" ] && cpu_string="kvm_intel"
 
     lsmod | grep "$cpu_string"
@@ -553,10 +525,10 @@ btrfs_snapshots(){
     btrfs subvolume delete /.snapshots
     mkdir /.snapshots
 
-    local part
+    echo "##################################################################################################"
+    local part="/dev/$DM_NAME"
 
-    echo -n "Type MOUNTED root partition: "
-    read -r part
+    [ "$has_encryption" -eq "$TRUE" ] && part="/dev/mapper/$DM_NAME"
 
     mount "$part" /mnt -o compress-force=zstd
     btrfs subvolume create /mnt/@snapshots
@@ -700,17 +672,8 @@ Select one of the following options:
     esac
 
 #     Asking for the encrypted partition
-    is_done="$FALSE"
-    local sys_part
-    while [ "$is_done" -eq "$FALSE" ]
-    do
-        lsblk
-        echo -n "Type encrypted root partition: "
-        read -r sys_part
-
-        ask "You have selected $sys_part. Is that correct?"
-        is_done="$?"
-    done
+    echo "##################################################################################################"
+    local sys_part="/dev/$DM_NAME"
 
 #     Creating the keyfile
     mount "$part" /mnt
@@ -772,11 +735,6 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
-is_encrypted(){
-    ask "Is the system encrypted?"
-    has_encryption="$?"
-}
-
 # Laptop specific functions
 enable_envycontrol(){
 true
@@ -788,6 +746,11 @@ laptop_extra_config(){
 }
 
 main(){
+    ask_global_vars
+
+    # Source var files
+    [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
     if [ "$#" -eq "0" ];
     then
         ask "Do you want to have REISUB?" && enable_reisub
@@ -822,8 +785,6 @@ main(){
     #     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
         ask "Do you want to install KVM?" && install_kvm
         ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
-
-        is_encrypted
 
         [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
 

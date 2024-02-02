@@ -136,6 +136,7 @@ partition_drive(){
 
 
 mkfs_partitions(){
+    local i
     ask "Do you want to encrypt root partition?"
     has_encryption="$?"
     add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
@@ -225,6 +226,7 @@ generate_locales(){
     local is_done="$FALSE"
     local all_ok="$FALSE"
     local counter
+    local i
 
     # Loop to start all over again in case there is a mistake
     while [ "$all_ok" -eq "$FALSE" ]
@@ -434,7 +436,7 @@ main(){
 
     install_bootloader
     
-    install_ssh
+    # install_ssh
 
     echo "Basic installation completed!. Now boot to root user and continue with the installation"
 

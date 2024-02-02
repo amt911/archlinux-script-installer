@@ -142,7 +142,6 @@ add_global_var_to_file(){
     if [ "$is_array" -eq "$TRUE" ];
     then
         local -n VALUE="$2"
-        echo "valor arr -> ${VALUE[*]} -> $is_array"
     else
         local -r VALUE="$2"
     fi
@@ -177,10 +176,8 @@ fi
 
         if [ "$is_array" -eq "$FALSE" ];
         then
-            echo "noooo"
             echo -e "$first_char$VAR_NAME=\"$VALUE\"" >> "$FILE_LOC"
         else
-            echo "he entrado aqui"
             echo -e "$first_char$VAR_NAME=(${VALUE[*]})" >> "$FILE_LOC"
         fi
 
@@ -202,10 +199,12 @@ is_element_in_array(){
     local -r ELEMENT="$1"
     local -n _ARR="$2"
 
+    local i
     for i in "${_ARR[@]}"
     do
         [ "$i" = "$ELEMENT" ] && return $TRUE
     done
+    unset i
 
     echo "element: $ELEMENT -> array:" "${_ARR[@]}"
 
@@ -223,6 +222,7 @@ ask_global_vars(){
     local is_done="$FALSE"
     local ask_yes_no
 
+    local i
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
         if ! grep -E "^${GLOBAL_VARS_NAME[i]}=" "$var_file" > /dev/null;
@@ -319,15 +319,14 @@ ask_global_vars(){
                                 echo "These are the selected GPU(s): ${aux_arr[*]}"
                                 ask "Are these correct?"
                                 is_done="$?"
-                                echo "$is_done"
+
+                                [ "$is_done" -eq "$FALSE" ] && aux_arr=()
                                 ;;
                             *)
                                 echo "Unknown option"
                                 ;;                      
                         esac
-                        echo "$is_done"
                     done
-                    echo "paso por aqui -> ${aux_arr[*]}"
                     add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "aux_arr" "$var_file" "$TRUE"
                     ;;
                     
@@ -354,27 +353,3 @@ ask_global_vars(){
 # is_laptop=true/false
 # gpu_type=amd/intel/nvidia
 }
-
-fn(){
-    if [ "$#" -eq "3" ];
-    then
-        local -r a="$1"
-    else
-        local -n a="$1"
-    fi
-
-    local -r b="$2"
-
-    echo "$a -> $b"
-}
-
-arrr=(amd intel nvidia qualcomm cummins)
-varr="como 33"
-
-fn "varr halo" "hola" "medc"
-fn "varr" "hola"
-
-ask_global_vars "mec"
-
-
-# "Broken. Fix add_global_var_to_file"
