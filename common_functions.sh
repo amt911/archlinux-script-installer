@@ -202,7 +202,7 @@ is_element_in_array(){
     local i
     for i in "${_ARR[@]}"
     do
-        [ "$i" = "$ELEMENT" ] && return $TRUE
+        [ "$i" = "$ELEMENT" ] && return "$TRUE"
     done
     unset i
 

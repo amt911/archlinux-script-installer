@@ -24,12 +24,6 @@ enable_reisub(){
 }
 
 enable_trim(){
-    # if [ -z "$has_encryption" ];
-    # then
-    #     ask "Does it have encryption?"
-    #     has_encryption="$?"
-    # fi
-
     echo "##################################################################################################"
 
     pacman --noconfirm -S util-linux
@@ -202,21 +196,26 @@ enable_hw_acceleration(){
     echo "Enabling hardware acceleration..."
 
 #     Diagnostic tool
-    pacman --noconfirm -S libva-utils vdpauinfo
+    pacman --noconfirm -S libva-utils vdpauinfo nvtop
 
-#     Installation of NVIDIA codecs by default.
-    echo "Installing codecs for NVIDIA GPU..."
-    pacman --noconfirm -S libva-nvidia-driver
+    local i
+    for i in "${gpu_type[@]}"
+    do
+        case $i in
+            "nvidia")
+            #     Installation of NVIDIA codecs by default.
+                echo "Installing codecs for NVIDIA GPU..."
+                pacman --noconfirm -S libva-nvidia-driver
 
-    echo "Checking if VA-API works on NVIDIA..."
+                echo "Checking if VA-API works on NVIDIA..."
 
-    if ! vainfo;
-    then
-        echo "Creating environment variables..."
+                if ! vainfo;
+                then
+                    echo "Creating environment variables..."
 
-        if [ "$is_laptop" -eq "$TRUE" ];
-        then
-            echo "
+                    if [ "$is_laptop" -eq "$TRUE" ];
+                    then
+                        echo "
 # Mi config
 if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
 then
@@ -225,22 +224,28 @@ then
     export NVD_BACKEND=direct
 fi" >> /etc/profile
 
-        else
-            echo "LIBVA_DRIVER_NAME=nvidia" >> /etc/environment
-            echo "NVD_BACKEND=direct" >> /etc/environment
-            echo "MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
-        fi
+                    else
+                        echo "LIBVA_DRIVER_NAME=nvidia
+NVD_BACKEND=direct
+MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
+                    fi
 
-    else
-        echo "Working correctly, there is nothing to do."
-    fi
+                else
+                    echo "Working correctly, there is nothing to do."
+                fi
+                ;;
 
+            "intel")
+                echo "Installing VA-API for Intel CPU..."
+                pacman --noconfirm -S intel-media-driver libvdpau-va-gl
+                ;;
 
-    if [ "$is_laptop" -eq "$TRUE" ];
-    then
-        echo "Installing VA-API for Intel CPU..."
-        pacman --noconfirm -S intel-media-driver libvdpau-va-gl
-    fi
+            *)
+                echo "Unknown error. Exiting..."
+                exit 1
+                ;;
+        esac
+    done
 
     echo "Please reboot your system for changes to take effect."
 }
@@ -264,22 +269,41 @@ install_firewall(){
 install_xorg(){
     echo "##################################################################################################"
 
+    local i
+    for i in "${gpu_type[@]}"
+    do
+        case $i in
+            "amd")
+                echo "WIP since I do not have an AMD GPU. Exiting..."
+                exit 0
+                ;;
 
-    pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
+            "intel")
+                echo "Installing Intel drivers..."
+                echo "CHECK IF THESE PACKAGES ARE CORRECT!"
+                sleep 3
+                pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+                ;;
+            
+            "nvidia")
+                echo "Installing nvidia drivers..."
+                pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
 
-    if [ "$is_laptop" -eq "$TRUE" ];
-    then
-        echo "CHECK IF THESE PACKAGES ARE CORRECT!"
-        sleep 3
-        pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
-
-    else
-        # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
-        echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
-        echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
-        # To check if it is working: 
-        # cat /sys/module/nvidia_drm/parameters/modeset
-    fi
+                if [ "$is_laptop" -eq "$FALSE" ];
+                then
+                    # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+                    echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
+                    echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    # To check if it is working: 
+                    # cat /sys/module/nvidia_drm/parameters/modeset
+                fi
+                ;;
+            *)
+                echo "Unknown error. Exiting..."
+                exit 1
+        esac
+    done
+    unset i
 
     # I do not disable kms HOOK because nvidia-utils blacklists nouveau by default.
 }
@@ -671,30 +695,30 @@ Select one of the following options:
             ;;
     esac
 
-#     Asking for the encrypted partition
+    # Asking for the encrypted partition
     echo "##################################################################################################"
     local sys_part="/dev/$DM_NAME"
 
-#     Creating the keyfile
+    # Creating the keyfile
     mount "$part" /mnt
     dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
     cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
 
-#     Adding the modules on mkinitcpio, only if they are not already there
+    # Adding the modules on mkinitcpio, only if they are not already there
     echo "Adding $selected_module to mkinicptio.conf..."
     grep -E "^MODULES=\(.*vfat.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
 
-#     We need to add a new kernel parameter.
-# First, we check if rd.luks.options exists.
+    # We need to add a new kernel parameter.
+    # First, we check if rd.luks.options exists.
     if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
     then
-#         If the entry exists, we add a new parameter inside
+        # If the entry exists, we add a new parameter inside
         echo "The entry exists. Adding new option."
         add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
     else
-#         If the entry does not exist, we add rd.luks.options directly.
+        # If the entry does not exist, we add rd.luks.options directly.
         echo "The entry does not exist. Adding new option"
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
@@ -705,10 +729,10 @@ Select one of the following options:
 
     add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=keyfile:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
 
-#     We regenerate the grub config
+    # We regenerate the grub config
     redo_grub
 
-#     Finally, unmount the pendrive
+    # Finally, unmount the pendrive
     umount /mnt
 }
 
@@ -751,22 +775,20 @@ main(){
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 
-    if [ "$#" -eq "0" ];
-    then
-        ask "Do you want to have REISUB?" && enable_reisub
-        ask "Do you want to enable TRIM?" && enable_trim
-        install_shells
-        add_users
-        ask "Do you want to parallelize package downloads and color them?" && improve_pacman
-        ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
-        ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-        ask "Do you want to enable scrub?" && btrfs_scrub
-        ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
-        ask "Do you want to install an AUR helper?" && install_yay
-        ask "Do you want to install bluetooth service?" && install_bluetooth
+    ask "Do you want to have REISUB?" && enable_reisub
+    ask "Do you want to enable TRIM?" && enable_trim
+    install_shells
+    add_users
+    ask "Do you want to parallelize package downloads and color them?" && improve_pacman
+    ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
+    ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
+    ask "Do you want to enable scrub?" && btrfs_scrub
+    ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
+    ask "Do you want to install an AUR helper?" && install_yay
+    ask "Do you want to install bluetooth service?" && install_bluetooth
 
-        # CHECK INSTALL_XORG ON LAPTOP. 
-        ask "Do you want to install Xorg and graphics driver?" && install_xorg
+    # CHECK INSTALL_XORG ON LAPTOP. 
+    ask "Do you want to install Xorg and graphics driver?" && install_xorg
 
     if [ ! -f "/root/after_install.tmp" ];
     then
@@ -775,22 +797,22 @@ main(){
         # CHECK FOR ROOTLESS WAYLAND!!!
         rootless_kde
     fi
-        ask "Do you want to install a cpu scaler?" && install_cpu_scaler
+
+    ask "Do you want to install a cpu scaler?" && install_cpu_scaler
     ask "Do you want to install the printer service?" && install_printer
     ask "Do you want to install a firewall?" && install_firewall
 
-#     PENSAR EN SI PONER LA REGLA UDEV
+    # PENSAR EN SI PONER LA REGLA UDEV
     ask "Do you want to install NTFS driver?" && enable_ntfs
 
-    #     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
-        ask "Do you want to install KVM?" && install_kvm
-        ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+    # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
+    ask "Do you want to install KVM?" && install_kvm
+    ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
 
-        [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+    [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
 
-        ask "Do you want to install lsd and hack nerd font?" && install_lsd
-        ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
-    fi
+    ask "Do you want to install lsd and hack nerd font?" && install_lsd
+    ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
 
     ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
 
@@ -799,7 +821,7 @@ main(){
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
-        # IN PROCESS
+    # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
 }
