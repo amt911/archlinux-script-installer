@@ -11,3 +11,4 @@ is_intel="1"
 is_laptop="0"
 has_swap="0"
 gpu_type=(nvidia amd)
+log_step="0"

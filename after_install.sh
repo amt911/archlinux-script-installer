@@ -205,7 +205,7 @@ enable_hw_acceleration(){
             "nvidia")
             #     Installation of NVIDIA codecs by default.
                 echo "Installing codecs for NVIDIA GPU..."
-                pacman --noconfirm -S libva-nvidia-driver
+                pacman --noconfirm -S libva-nvidia-driver nvidia-settings
 
                 echo "Checking if VA-API works on NVIDIA..."
 
@@ -237,7 +237,7 @@ MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
 
             "intel")
                 echo "Installing VA-API for Intel CPU..."
-                pacman --noconfirm -S intel-media-driver libvdpau-va-gl
+                pacman --noconfirm -S intel-gpu-tools intel-media-driver libvdpau-va-gl
                 ;;
 
             *)
@@ -320,11 +320,7 @@ install_kde(){
 
     systemctl enable sddm.service
 
-    if ask "You need to reboot. Reboot?";
-    then
-        touch /root/after_install.tmp
-        reboot
-    fi
+    echo "Please reboot your system for changes to take effect."
 }
 
 install_gnome(){
@@ -441,6 +437,9 @@ echo "##########################################################################
     systemctl start virtlogd.service
 
     systemctl enable libvirtd.service
+
+    echo "Please reboot your system to archiso again and copy after_install.sh $VAR_FILENAME common_functions.sh libvirt_subvol.sh to archiso's root folder."
+    sleep 10
 }
 
 install_printer(){
@@ -649,6 +648,7 @@ Select one of the following options:
     2) fat32
     3) btrfs"
 
+        echo -n "Type current or desired filesystem: "
         read -r fs_type
         case $fs_type in
             "ext4"|"1")
@@ -676,24 +676,32 @@ Select one of the following options:
         fi
     done
 
-    echo "Formatting partition..."
+    local wants_format="$FALSE"
 
-    case "$selected_module" in
-        "ext4")
-            mkfs.ext4 "$part"
-            ;;
-        "vfat")
-            pacman --noconfirm -S dosfstools
-            mkfs.fat -F32 "$part"
-            ;;
-        "btrfs")
-            mkfs.btrfs -L pen "$part"
-            ;;
-        *)
-            echo "Unknown error."
-            return 1
-            ;;
-    esac
+    ask "Do you want to format partition?"
+    wants_format="$?"
+
+    if [ "$wants_format" -eq "$TRUE" ];
+    then
+        echo "Formatting partition..."
+
+        case "$selected_module" in
+            "ext4")
+                mkfs.ext4 "$part"
+                ;;
+            "vfat")
+                pacman --noconfirm -S dosfstools
+                mkfs.fat -F32 "$part"
+                ;;
+            "btrfs")
+                mkfs.btrfs -L pen "$part"
+                ;;
+            *)
+                echo "Unknown error."
+                return 1
+                ;;
+        esac
+    fi
 
     # Asking for the encrypted partition
     echo "##################################################################################################"
@@ -705,8 +713,8 @@ Select one of the following options:
     cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
 
     # Adding the modules on mkinitcpio, only if they are not already there
-    echo "Adding $selected_module to mkinicptio.conf..."
-    grep -E "^MODULES=\(.*vfat.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+    echo "Adding $selected_module to mkinitcpio.conf..."
+    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
 
@@ -761,12 +769,21 @@ cleanup(){
 
 # Laptop specific functions
 enable_envycontrol(){
-true
+    local -r USER=$(get_sudo_user)
+    
+    echo "Enabling envycontrol..."
+
+    sudo -S -i -u "$USER" yay -S envycontrol
+
+    echo "Switching to integrated..."
+    envycontrol -s integrated
 }
 
 laptop_extra_config(){
     # aqui va la configuracion de los altavoces y eso
-    true
+    echo "Enabling modprobe config..."
+
+    echo "options snd_hda_intel model=lenovo-y530" > /etc/modprobe.d/msi_laptop.conf
 }
 
 main(){
@@ -775,46 +792,86 @@ main(){
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 
-    ask "Do you want to have REISUB?" && enable_reisub
-    ask "Do you want to enable TRIM?" && enable_trim
-    install_shells
-    add_users
-    ask "Do you want to parallelize package downloads and color them?" && improve_pacman
-    ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
-    ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-    ask "Do you want to enable scrub?" && btrfs_scrub
-    ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
-    ask "Do you want to install an AUR helper?" && install_yay
-    ask "Do you want to install bluetooth service?" && install_bluetooth
+    case $log_step in
+        0)
+            ask "Do you want to have REISUB?" && enable_reisub
+            ask "Do you want to enable TRIM?" && enable_trim
+            install_shells
+            add_users
+            ask "Do you want to parallelize package downloads and color them?" && improve_pacman
+            ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
+            ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
+            ask "Do you want to enable scrub?" && btrfs_scrub
+            ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
+            ask "Do you want to install an AUR helper?" && install_yay
+            ask "Do you want to install bluetooth service?" && install_bluetooth
 
-    # CHECK INSTALL_XORG ON LAPTOP. 
-    ask "Do you want to install Xorg and graphics driver?" && install_xorg
+            # CHECK INSTALL_XORG ON LAPTOP. 
+            ask "Do you want to install Xorg and graphics driver?" && install_xorg
 
-    if [ ! -f "/root/after_install.tmp" ];
-    then
-        ask "Do you want to install KDE?" && install_kde
-    else
-        # CHECK FOR ROOTLESS WAYLAND!!!
-        rootless_kde
-    fi
+            ask "Do you want to install KDE?" && install_kde
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
+            reboot
+            ;;
 
-    ask "Do you want to install a cpu scaler?" && install_cpu_scaler
-    ask "Do you want to install the printer service?" && install_printer
-    ask "Do you want to install a firewall?" && install_firewall
+        1)
+            # CHECK FOR ROOTLESS WAYLAND!!!
+            rootless_kde
 
-    # PENSAR EN SI PONER LA REGLA UDEV
-    ask "Do you want to install NTFS driver?" && enable_ntfs
+            ask "Do you want to install a cpu scaler?" && install_cpu_scaler
+            # REBOOT
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
 
-    # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
-    ask "Do you want to install KVM?" && install_kvm
-    ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+        2)
+            ask "Do you want to install the printer service?" && install_printer
+            ask "Do you want to install a firewall?" && install_firewall
 
-    [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+            # PENSAR EN SI PONER LA REGLA UDEV
+            ask "Do you want to install NTFS driver?" && enable_ntfs
 
-    ask "Do you want to install lsd and hack nerd font?" && install_lsd
-    ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
+            # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
+            ask "Do you want to install KVM?" && install_kvm
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
 
-    ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+        3)
+            # REBOOT TO ARCHISO
+            ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
+
+        4)
+            # REBOOT
+            [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+
+            ask "Do you want to install lsd and hack nerd font?" && install_lsd
+            ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
+
+            ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
+        
+        5)
+            ask "Do you want to install optional packages?" && echo "WIP"
+
+            if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
+            then 
+                ask "Do you want to enable laptop specific features?" && laptop_extra_config
+                ask "Do you want to enable envycontrol?" && enable_envycontrol
+            fi
+            ;;
+
+        *)
+            echo "Unknown error"
+            exit 1
+            ;;
+    esac
+
 
     echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
@@ -826,4 +883,4 @@ main(){
     # disable_ssh_service
 }
 
-# main "$@"
+main "$@"

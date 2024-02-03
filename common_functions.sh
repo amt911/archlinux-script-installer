@@ -15,6 +15,10 @@ readonly FALSE=1
 readonly VAR_FILENAME="vars.sh"
 readonly VAR_FILE_LOC="/root/$VAR_FILENAME"
 
+readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step")
+readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step")
+readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP")
+
 # GLOBAL VARS
 # 
 # tty_layout
@@ -29,7 +33,7 @@ readonly VAR_FILE_LOC="/root/$VAR_FILENAME"
 # is_intel=true/false
 # is_laptop=true/false
 # gpu_type=amd/intel/nvidia
-# 
+# log_step="number"
 
 
 # Asks for something to do in this script.
@@ -186,11 +190,6 @@ fi
 }
 
 
-readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type")
-readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu")
-readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): ")
-
-
 # $1: Element
 # $2: Array. It must be passed by its variable name, without $ sign and without double quotes
 # return: $TRUE if the element is inside the array, $FALSE in other case
@@ -206,12 +205,10 @@ is_element_in_array(){
     done
     unset i
 
-    echo "element: $ELEMENT -> array:" "${_ARR[@]}"
-
     return "$FALSE"
 }
 
-# $1 (optiona): Variable file location. If not set, uses $VAR_FILE_LOC
+# $1 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
 ask_global_vars(){
     local var_file="$VAR_FILE_LOC"
     local tmp
@@ -330,6 +327,9 @@ ask_global_vars(){
                     add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "aux_arr" "$var_file" "$TRUE"
                     ;;
                     
+                "log_step")
+                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "0" "$var_file" "$FALSE"
+                    ;;                    
                 *)
                     echo "WIP"
                     ;;
@@ -339,17 +339,4 @@ ask_global_vars(){
         fi
     done
     unset i
-
-    
-# has_swap=true/false
-# is_zram=true/false
-# swap_part
-# boot_part
-# root_part
-# has_encryption=true/false
-# DM_NAME
-# machine_name
-# is_intel=true/false
-# is_laptop=true/false
-# gpu_type=amd/intel/nvidia
 }
