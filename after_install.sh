@@ -767,6 +767,38 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
+enable_paccache(){
+    pacman --noconfirm -S pacman-contrib
+
+    if ask "Do you want to set a custom number of cached file?";
+    then
+        local RK="1"
+        local RUK="0"
+
+        echo "Recent version: $RK
+Unused packages: $RUK"
+
+        ask "Do you want to keep these custom settings?"
+        local -r ans="$?"
+
+        if [ "$ans" -eq "$FALSE" ];
+        then
+            echo -n "Recent version number (default: $RK): "
+            read -r RK
+
+            echo -n "Unused packages number (default: $RUK): "
+            read -r RUK
+        fi
+
+        echo "Changing paccache.service..."
+        awk 'BEGIN{OFS=FS="="} /^ExecStart=/{cmd=substr($0,1,length($0)-3); $0="# "$0"\n"cmd" -rk"'"$RK"'"\n"cmd" -ruk"'"$RUK"'};1' /usr/lib/systemd/system/paccache.service > /usr/lib/systemd/system/paccache.service.TMP && mv /usr/lib/systemd/system/paccache.service.TMP /usr/lib/systemd/system/paccache.service
+    fi
+
+    echo "Enabling and starting paccache.timer..."
+    systemctl enable paccache.timer
+    systemctl start paccache.timer
+}
+
 # Laptop specific functions
 enable_envycontrol(){
     local -r USER=$(get_sudo_user)
@@ -799,6 +831,7 @@ main(){
             install_shells
             add_users
             ask "Do you want to parallelize package downloads and color them?" && improve_pacman
+            ask "Do you want to enable periodic pacman cache cleaning?" && enable_paccache
             ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
             ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
             ask "Do you want to enable scrub?" && btrfs_scrub
