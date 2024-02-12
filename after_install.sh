@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
+
 source common_functions.sh
 
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
@@ -601,7 +603,7 @@ install_yay(){
 enable_crypt_keyfile(){
     echo "Enabling keyfile at boot..."
 
-    ask "If your pendrive inserted? If not, insert it now."
+    ask "Is your pendrive inserted? If not, insert it now."
 
     local drive
     local is_done="$FALSE"
@@ -707,10 +709,22 @@ Select one of the following options:
     echo "##################################################################################################"
     local sys_part="/dev/$DM_NAME"
 
+
     # Creating the keyfile
     mount "$part" /mnt
-    dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
-    cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
+
+    # Creating keyfile name (it may already exist)
+    local keyfile_name="keyfile-$machine_name-$RANDOM"
+
+    # Generate keyfile name until
+    while [ -f "/mnt/$keyfile_name" ]
+    do
+        keyfile_name="keyfile-$machine_name-$RANDOM"
+    done
+
+    # Creating the keyfile
+    dd bs=512 count=4 if=/dev/random of="/mnt/$keyfile_name" iflag=fullblock
+    cryptsetup luksAddKey "$sys_part" "/mnt/$keyfile_name"
 
     # Adding the modules on mkinitcpio, only if they are not already there
     echo "Adding $selected_module to mkinitcpio.conf..."
@@ -735,7 +749,7 @@ Select one of the following options:
     local -r PEN_UUID=$(blkid -s UUID -o value "$part")
     local -r ROOT_UUID=$(blkid -s UUID -o value "$sys_part")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=keyfile:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
 
     # We regenerate the grub config
     redo_grub
@@ -823,6 +837,7 @@ main(){
 
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+enable_crypt_keyfile
 
     case $log_step in
         0)

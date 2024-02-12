@@ -222,7 +222,7 @@ ask_global_vars(){
     local i
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
-        if ! grep -E "^${GLOBAL_VARS_NAME[i]}=" "$var_file" > /dev/null;
+        if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[i]}=" "$var_file" > /dev/null;
         then
             # echo "No existe ${GLOBAL_VARS_NAME[i]}"
             case ${VARS_TYPE[i]} in
