@@ -1,8 +1,10 @@
 #!/bin/bash
 
+# for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
+
+source common_functions.sh
+
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
-readonly TRUE=0
-readonly FALSE=1
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 # TODO
 # DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
@@ -12,116 +14,9 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # PONER EN LOS PAQUETES DOSFSTOOLS
 # enable_crypt_keyfile -> Comprobar antes si existe el modulo en mkinitcpio
 
-# GLOBAL VARS
-# tty_layout
-# has_swap
-# swap_part
-# boot_part
-# root_part
-# has_encryption
-# DM_NAME
-# machine_name
-# is_intel
-# is_laptop
-
-# Asks for something to do in this script.
-# 
-# $1: Question to be displayed. It should not have a colon nor space at the end since it is appended.
-#
-# return: 0 if yes, 1 if no in $?.
-ask(){
-    local -r QUESTION="$1"
-    local done="$FALSE"
-    local ans
-    local res
-
-    while [ "$done" -eq "$FALSE" ]
-    do
-        echo -n "$QUESTION (y/n): "
-        read -r ans
-
-        case $ans in
-            y|Y|[yY][eE][sS] )
-                res="$TRUE"
-                done="$TRUE"
-                ;;
-            n|N|[nN][oO] )
-                res="$FALSE"
-                done="$TRUE"
-                ;;
-            * )
-                echo "other case"
-                ;;
-        esac
-    done
-
-    return "$res"
-}
-
 redo_grub(){
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
     grub-mkconfig -o /boot/grub/grub.cfg
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: is double quote (TRUE/FALSE)
-# $5: Do it inline?
-# note: If you need to use "/", the put it like \/
-add_sentence_end_quote(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote='\"'
-
-    [ "$4" -eq "$FALSE" ] && quote="'"
-
-    local is_inline="$5"
-
-    if [ "$is_inline" -eq "$TRUE" ];
-    then
-        sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    else
-        sed "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    fi
-
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: end quote
-# note: If you need to use "/", the put it like \/
-add_sentence_2(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote="$4"
-
-
-
-    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-}
-
-# $1: Option (or options, but ending without comma)
-# $2: File location
-# $3 ($TRUE/$FALSE): Do it inline?
-add_option_inside_luks_options(){
-    local -r OPTION="$1"
-    local -r FILE="$2"
-    local -r IS_INLINE="$3"
-
-    if [ "$IS_INLINE" -eq "$TRUE" ];
-    then
-        sed -i "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
-    else
-        sed "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" $FILE
-    fi
 }
 
 enable_reisub(){
@@ -131,11 +26,7 @@ enable_reisub(){
 }
 
 enable_trim(){
-    if [ -z "$has_encryption" ];
-    then
-        ask "Does it have encryption?"
-        has_encryption="$?"
-    fi
+    echo "##################################################################################################"
 
     pacman --noconfirm -S util-linux
     systemctl enable fstrim.timer
@@ -219,8 +110,7 @@ enable_multilib(){
 
     pacman --noconfirm -Syu
     
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 
     echo "Check changes:"
     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /etc/pacman.conf
@@ -279,34 +169,12 @@ install_optional_pkgs(){
 true
 }
 
-cpu_type(){
-    if [ -z "$is_intel" ];
-    then
-        ask "Is it an Intel CPU?"
-        is_intel="$?"
-    fi
-
-    return "$is_intel"
-}
-
-check_machine(){
-    ask "Is this machine a laptop?"
-    is_laptop="$?"
-}
-
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
-# Firtst, ask if it is AMD CPU: amd_pstate=guided
+# Firtst, ask if it is AMD CPU: amd_pstate=active
 # https://docs.kernel.org/admin-guide/pm/amd-pstate.html
 # https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
-#     if [ -z "$is_intel" ];
-#     then
-#         ask "Is it an Intel CPU?"
-#         is_intel="$?"
-#     fi
-
-    cpu_type
 
     pacman --noconfirm -S powerdevil power-profiles-daemon python-gobject
 
@@ -329,26 +197,28 @@ enable_hw_acceleration(){
     # To implement on a real machine
     echo "Enabling hardware acceleration..."
 
-    cpu_type
-    check_machine
-
 #     Diagnostic tool
-    pacman --noconfirm -S libva-utils vdpauinfo
+    pacman --noconfirm -S libva-utils vdpauinfo nvtop
 
-#     Installation of NVIDIA codecs by default.
-    echo "Installing codecs for NVIDIA GPU..."
-    pacman --noconfirm -S libva-nvidia-driver
+    local i
+    for i in "${gpu_type[@]}"
+    do
+        case $i in
+            "nvidia")
+            #     Installation of NVIDIA codecs by default.
+                echo "Installing codecs for NVIDIA GPU..."
+                pacman --noconfirm -S libva-nvidia-driver nvidia-settings
 
-    echo "Checking if VA-API works on NVIDIA..."
+                echo "Checking if VA-API works on NVIDIA..."
 
-    if ! vainfo;
-    then
-        echo "Creating environment variables..."
+                if ! vainfo;
+                then
+                    echo "Creating environment variables..."
 
-        if [ "$is_laptop" -eq "$TRUE" ];
-        then
-            echo "
-#Mi config
+                    if [ "$is_laptop" -eq "$TRUE" ];
+                    then
+                        echo "
+# Mi config
 if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
 then
     export LIBVA_DRIVER_NAME=nvidia
@@ -356,22 +226,28 @@ then
     export NVD_BACKEND=direct
 fi" >> /etc/profile
 
-        else
-            echo "LIBVA_DRIVER_NAME=nvidia" >> /etc/environment
-            echo "NVD_BACKEND=direct" >> /etc/environment
-            echo "MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
-        fi
+                    else
+                        echo "LIBVA_DRIVER_NAME=nvidia
+NVD_BACKEND=direct
+MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
+                    fi
 
-    else
-        echo "Working correctly, there is nothing to do."
-    fi
+                else
+                    echo "Working correctly, there is nothing to do."
+                fi
+                ;;
 
+            "intel")
+                echo "Installing VA-API for Intel CPU..."
+                pacman --noconfirm -S intel-gpu-tools intel-media-driver libvdpau-va-gl
+                ;;
 
-    if [ "$is_laptop" -eq "$TRUE" ];
-    then
-        echo "Installing VA-API for Intel CPU..."
-        pacman --noconfirm -S intel-media-driver libvdpau-va-gl
-    fi
+            *)
+                echo "Unknown error. Exiting..."
+                exit 1
+                ;;
+        esac
+    done
 
     echo "Please reboot your system for changes to take effect."
 }
@@ -393,25 +269,43 @@ install_firewall(){
 }
 
 install_xorg(){
-    ask "Is this machine a laptop?"
-    is_laptop="$?"
+    echo "##################################################################################################"
 
+    local i
+    for i in "${gpu_type[@]}"
+    do
+        case $i in
+            "amd")
+                echo "WIP since I do not have an AMD GPU. Exiting..."
+                exit 0
+                ;;
 
-    pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
+            "intel")
+                echo "Installing Intel drivers..."
+                echo "CHECK IF THESE PACKAGES ARE CORRECT!"
+                sleep 3
+                pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+                ;;
+            
+            "nvidia")
+                echo "Installing nvidia drivers..."
+                pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
 
-    if [ "$is_laptop" -eq "$TRUE" ];
-    then
-        echo "CHECK IF THESE PACKAGES ARE CORRECT!"
-        sleep 3
-        pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
-
-    else
-        # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
-        echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
-        echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
-        # To check if it is working: 
-        # cat /sys/module/nvidia_drm/parameters/modeset
-    fi
+                if [ "$is_laptop" -eq "$FALSE" ];
+                then
+                    # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+                    echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
+                    echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    # To check if it is working: 
+                    # cat /sys/module/nvidia_drm/parameters/modeset
+                fi
+                ;;
+            *)
+                echo "Unknown error. Exiting..."
+                exit 1
+        esac
+    done
+    unset i
 
     # I do not disable kms HOOK because nvidia-utils blacklists nouveau by default.
 }
@@ -428,11 +322,7 @@ install_kde(){
 
     systemctl enable sddm.service
 
-    if ask "You need to reboot. Reboot?";
-    then
-        touch /root/after_install.tmp
-        reboot
-    fi
+    echo "Please reboot your system for changes to take effect."
 }
 
 install_gnome(){
@@ -457,8 +347,7 @@ install_kvm(){
     local modprobe_cpu
     local cpu_string="kvm_amd"
 
-    cpu_type
-
+echo "##################################################################################################"
     [ "$is_intel" -eq "$TRUE" ] && cpu_string="kvm_intel"
 
     lsmod | grep "$cpu_string"
@@ -513,8 +402,7 @@ install_kvm(){
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
 
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 
 #     Libvirt installation
     echo "Installing libvirt..."
@@ -551,6 +439,9 @@ install_kvm(){
     systemctl start virtlogd.service
 
     systemctl enable libvirtd.service
+
+    echo "Please reboot your system to archiso again and copy after_install.sh $VAR_FILENAME common_functions.sh libvirt_subvol.sh to archiso's root folder."
+    sleep 10
 }
 
 install_printer(){
@@ -635,6 +526,9 @@ install_ms_fonts(){
     fc-cache --force
     fc-cache-32 --force
 
+    echo "Deleting Windows image and tmp directories..."
+    rm -r "$ISO_LOCATION" "/root/install.wim /root/fonts"
+
     [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
 
@@ -656,10 +550,10 @@ btrfs_snapshots(){
     btrfs subvolume delete /.snapshots
     mkdir /.snapshots
 
-    local part
+    echo "##################################################################################################"
+    local part="/dev/$DM_NAME"
 
-    echo -n "Type MOUNTED root partition: "
-    read -r part
+    [ "$has_encryption" -eq "$TRUE" ] && part="/dev/mapper/$DM_NAME"
 
     mount "$part" /mnt -o compress-force=zstd
     btrfs subvolume create /mnt/@snapshots
@@ -703,14 +597,13 @@ install_yay(){
     sudo -S -i -u "$USER" yay -Syu --devel
     sudo -S -i -u "$USER" yay -Y --devel --save 
 
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub
 }
 
 enable_crypt_keyfile(){
     echo "Enabling keyfile at boot..."
 
-    ask "If your pendrive inserted? If not, insert it now."
+    ask "Is your pendrive inserted? If not, insert it now."
 
     local drive
     local is_done="$FALSE"
@@ -757,6 +650,7 @@ Select one of the following options:
     2) fat32
     3) btrfs"
 
+        echo -n "Type current or desired filesystem: "
         read -r fs_type
         case $fs_type in
             "ext4"|"1")
@@ -784,57 +678,69 @@ Select one of the following options:
         fi
     done
 
-    echo "Formatting partition..."
+    local wants_format="$FALSE"
 
-    case "$selected_module" in
-        "ext4")
-            mkfs.ext4 "$part"
-            ;;
-        "vfat")
-            pacman --noconfirm -S dosfstools
-            mkfs.fat -F32 "$part"
-            ;;
-        "btrfs")
-            mkfs.btrfs -L pen "$part"
-            ;;
-        *)
-            echo "Unknown error."
-            return 1
-            ;;
-    esac
+    ask "Do you want to format partition?"
+    wants_format="$?"
 
-#     Asking for the encrypted partition
-    is_done="$FALSE"
-    local sys_part
-    while [ "$is_done" -eq "$FALSE" ]
+    if [ "$wants_format" -eq "$TRUE" ];
+    then
+        echo "Formatting partition..."
+
+        case "$selected_module" in
+            "ext4")
+                mkfs.ext4 "$part"
+                ;;
+            "vfat")
+                pacman --noconfirm -S dosfstools
+                mkfs.fat -F32 "$part"
+                ;;
+            "btrfs")
+                mkfs.btrfs -L pen "$part"
+                ;;
+            *)
+                echo "Unknown error."
+                return 1
+                ;;
+        esac
+    fi
+
+    # Asking for the encrypted partition
+    echo "##################################################################################################"
+    local sys_part="/dev/$DM_NAME"
+
+
+    # Creating the keyfile
+    mount "$part" /mnt
+
+    # Creating keyfile name (it may already exist)
+    local keyfile_name="keyfile-$machine_name-$RANDOM"
+
+    # Generate keyfile name until
+    while [ -f "/mnt/$keyfile_name" ]
     do
-        lsblk
-        echo -n "Type encrypted root partition: "
-        read -r sys_part
-
-        ask "You have selected $sys_part. Is that correct?"
-        is_done="$?"
+        keyfile_name="keyfile-$machine_name-$RANDOM"
     done
 
-#     Creating the keyfile
-    mount $part /mnt
-    dd bs=512 count=4 if=/dev/random of="/mnt/keyfile" iflag=fullblock
-    cryptsetup luksAddKey "$sys_part" "/mnt/keyfile"
+    # Creating the keyfile
+    dd bs=512 count=4 if=/dev/random of="/mnt/$keyfile_name" iflag=fullblock
+    cryptsetup luksAddKey "$sys_part" "/mnt/$keyfile_name"
 
-#     Adding the modules on mkinitcpio
-    add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+    # Adding the modules on mkinitcpio, only if they are not already there
+    echo "Adding $selected_module to mkinitcpio.conf..."
+    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
 
-#     We need to add a new kernel parameter.
-# First, we check if rd.luks.options exists.
+    # We need to add a new kernel parameter.
+    # First, we check if rd.luks.options exists.
     if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
     then
-#         If the entry exists, we add a new parameter inside
+        # If the entry exists, we add a new parameter inside
         echo "The entry exists. Adding new option."
         add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
     else
-#         If the entry does not exist, we add rd.luks.options directly.
+        # If the entry does not exist, we add rd.luks.options directly.
         echo "The entry does not exist. Adding new option"
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
@@ -843,12 +749,12 @@ Select one of the following options:
     local -r PEN_UUID=$(blkid -s UUID -o value "$part")
     local -r ROOT_UUID=$(blkid -s UUID -o value "$sys_part")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=keyfile:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
 
-#     We regenerate the grub config
+    # We regenerate the grub config
     redo_grub
 
-#     Finally, unmount the pendrive
+    # Finally, unmount the pendrive
     umount /mnt
 }
 
@@ -875,73 +781,152 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
-is_encrypted(){
-    ask "Is the system encrypted?"
-    has_encryption="$?"
+enable_paccache(){
+    pacman --noconfirm -S pacman-contrib
+
+    if ask "Do you want to set a custom number of cached file?";
+    then
+        local RK="1"
+        local RUK="0"
+
+        echo "Recent version: $RK
+Unused packages: $RUK"
+
+        ask "Do you want to keep these custom settings?"
+        local -r ans="$?"
+
+        if [ "$ans" -eq "$FALSE" ];
+        then
+            echo -n "Recent version number (default: $RK): "
+            read -r RK
+
+            echo -n "Unused packages number (default: $RUK): "
+            read -r RUK
+        fi
+
+        echo "Changing paccache.service..."
+        awk 'BEGIN{OFS=FS="="} /^ExecStart=/{cmd=substr($0,1,length($0)-3); $0="# "$0"\n"cmd" -rk"'"$RK"'"\n"cmd" -ruk"'"$RUK"'};1' /usr/lib/systemd/system/paccache.service > /usr/lib/systemd/system/paccache.service.TMP && mv /usr/lib/systemd/system/paccache.service.TMP /usr/lib/systemd/system/paccache.service
+    fi
+
+    echo "Enabling and starting paccache.timer..."
+    systemctl enable paccache.timer
+    systemctl start paccache.timer
 }
 
 # Laptop specific functions
 enable_envycontrol(){
-true
+    local -r USER=$(get_sudo_user)
+    
+    echo "Enabling envycontrol..."
+
+    sudo -S -i -u "$USER" yay -S envycontrol
+
+    echo "Switching to integrated..."
+    envycontrol -s integrated
 }
 
 laptop_extra_config(){
     # aqui va la configuracion de los altavoces y eso
-    true
+    echo "Enabling modprobe config..."
+
+    echo "options snd_hda_intel model=lenovo-y530" > /etc/modprobe.d/msi_laptop.conf
 }
 
 main(){
-    if [ "$#" -eq "0" ];
-    then
-        ask "Do you want to have REISUB?" && enable_reisub
-        ask "Do you want to enable TRIM?" && enable_trim
-        install_shells
-        add_users
-        ask "Do you want to parallelize package downloads and color them?" && improve_pacman
-        ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
-        ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-        ask "Do you want to enable scrub?" && btrfs_scrub
-        ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
-        ask "Do you want to install an AUR helper?" && install_yay
-        ask "Do you want to install bluetooth service?" && install_bluetooth
+    ask_global_vars
 
-        # CHECK INSTALL_XORG ON LAPTOP. 
-        ask "Do you want to install Xorg and graphics driver?" && install_xorg
+    # Source var files
+    [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+enable_crypt_keyfile
 
-    if [ ! -f "/root/after_install.tmp" ];
-    then
-        ask "Do you want to install KDE?" && install_kde
-    else
-        # CHECK FOR ROOTLESS WAYLAND!!!
-        rootless_kde
-    fi
-        ask "Do you want to install a cpu scaler?" && install_cpu_scaler
-    ask "Do you want to install the printer service?" && install_printer
-    ask "Do you want to install a firewall?" && install_firewall
+    case $log_step in
+        0)
+            ask "Do you want to have REISUB?" && enable_reisub
+            ask "Do you want to enable TRIM?" && enable_trim
+            install_shells
+            add_users
+            ask "Do you want to parallelize package downloads and color them?" && improve_pacman
+            ask "Do you want to enable periodic pacman cache cleaning?" && enable_paccache
+            ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
+            ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
+            ask "Do you want to enable scrub?" && btrfs_scrub
+            ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
+            ask "Do you want to install an AUR helper?" && install_yay
+            ask "Do you want to install bluetooth service?" && install_bluetooth
 
-#     PENSAR EN SI PONER LA REGLA UDEV
-    ask "Do you want to install NTFS driver?" && enable_ntfs
+            # CHECK INSTALL_XORG ON LAPTOP. 
+            ask "Do you want to install Xorg and graphics driver?" && install_xorg
 
-    #     CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
-        ask "Do you want to install KVM?" && install_kvm
-        ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+            ask "Do you want to install KDE?" && install_kde
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
+            reboot
+            ;;
 
-        is_encrypted
+        1)
+            # CHECK FOR ROOTLESS WAYLAND!!!
+            rootless_kde
 
-        [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+            ask "Do you want to install a cpu scaler?" && install_cpu_scaler
+            # REBOOT
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
 
-        ask "Do you want to install lsd and hack nerd font?" && install_lsd
-        ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
-    fi
+        2)
+            ask "Do you want to install the printer service?" && install_printer
+            ask "Do you want to install a firewall?" && install_firewall
 
-    ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            # PENSAR EN SI PONER LA REGLA UDEV
+            ask "Do you want to install NTFS driver?" && enable_ntfs
+
+            # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
+            ask "Do you want to install KVM?" && install_kvm
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
+
+        3)
+            # REBOOT TO ARCHISO
+            ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
+
+        4)
+            # REBOOT
+            [ "$has_encryption" -eq "$TRUE" ] && ask "Do you want to store a keyfile to decrypt system?" && enable_crypt_keyfile
+
+            ask "Do you want to install lsd and hack nerd font?" && install_lsd
+            ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
+
+            ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            reboot
+            ;;
+        
+        5)
+            ask "Do you want to install optional packages?" && echo "WIP"
+
+            if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
+            then 
+                ask "Do you want to enable laptop specific features?" && laptop_extra_config
+                ask "Do you want to enable envycontrol?" && enable_envycontrol
+            fi
+            ;;
+
+        *)
+            echo "Unknown error"
+            exit 1
+            ;;
+    esac
+
 
     echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
-        # IN PROCESS
+    # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
 }

@@ -1,121 +1,38 @@
-#!/bin/zsh
+#!/bin/bash
 
 # testing commands for live environment: passwd
 # set static ip to archiso: ip a add 192.168.56.101/24 broadcast + dev enp0s8
 # testing commands for host: scp installer.sh root@192.168.56.101:/root
 
+source common_functions.sh
+
 # TODO:
 # Poder detectar entre CSM y UEFI
 # Intentar hacer algún menú interactivo
 # Fix sleep command (it is a hacky way of doing things)
-# Preguntar por el layout final de cuando te pide las particiones (por si te has equivocado)
 # Mejorar la lógica para mostrar los locales disponibles.
-# DONE Mejorar la lógica de loadkeys_tty
-# Añadir posibilidad de desencriptar utilizando USB
 # Tener en cuenta mas opciones de swap
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
 # Investigar paccache https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
 # Asegurar que al menos un usuario esta en el grupo wheel
 
-readonly TRUE=0
-readonly FALSE=1
 # https://wiki.archlinux.org/title/Snapper#Preventing_slowdowns
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@var_tmp")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
-readonly BTRFS_SNAP=("@snapshots" "@home_snapshots")
-readonly BTRFS_SNAP_MNT=("/mnt/.snapshots" "/mnt/home/.snapshots")
-# "@var_lib_libvirt"
-# "/mnt/lib/libvirt"
-# DA FALLO PORQUE DICE QUE EXISTE EL DIRECTORIO /lib
-# HAY QUE QUITAR /mnt/lib/libvirt Y PONERLO DESPUES DE LA INSTALACION DE LOS PAQUETES CON PACSTRAP
-
 
 # Packages
 # 1
-readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi")
-
-# readonly SHELLS_SUDO=("zsh" "fish" "sudo")
-
-readonly OPTIONAL_PKGS=("less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
-
-readonly AMD_PACKAGES=("cpupower")
+readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
+readonly OPTIONAL_PKGS=("dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex" "hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
-
 readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
 
-readonly BTRFS_EXTRA=("snapper" "snap-pac")
-# readonly LAPTOP_ADD_PKGS=
 
 # Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
 # Paquetes especiales de la torre que requieren configuración adidional: cpupower
 # Paquetes desactualizados: veracrypt, btop, 
-
-
-# GLOBAL VARS
-# tty_layout
-# has_swap
-# swap_part
-# boot_part
-# root_part
-# has_encryption
-# DM_NAME
-# machine_name
-# is_intel
-
-# Asks for something to do in this script.
-# 
-# $1: Question to be displayed. It should not have a colon nor space at the end since it is appended.
-#
-# return: 0 if yes, 1 if no in $?.
-ask(){
-    local -r QUESTION="$1"
-    local done="$FALSE"
-    local ans
-    local res
-
-    while [ "$done" -eq "$FALSE" ]
-    do
-        echo -n "$QUESTION (y/n): "
-        read -r ans
-
-        case $ans in
-            y|Y|[yY][eE][sS] )
-                res="$TRUE"
-                done="$TRUE"
-                ;;
-            n|N|[nN][oO] )
-                res="$FALSE"
-                done="$TRUE"
-                ;;
-            * )
-                echo "other case"
-                ;;
-        esac
-    done
-
-    return "$res"
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: is double quote (TRUE/FALSE)
-# note: If you need to use "/", the put it like \/
-add_sentence_end_quote(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote='\"'
-
-    [ "$4" -eq "$FALSE" ] && quote="'"
-
-
-    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" ${FILENAME}
-}
 
 loadkeys_tty(){
     echo -n "Type desired locale (leave empty for default): "
@@ -188,19 +105,24 @@ partition_drive(){
 
         ask "Does it have a swap partition?"
         has_swap="$?"
+        add_global_var_to_file "has_swap" "$has_swap" "$VAR_FILE_LOC"
+
         
         if [ "$has_swap" -eq "$TRUE" ];
         then
             echo -n "Type swap partition: "
             read -r swap_part
+            add_global_var_to_file "swap_part" "$swap_part" "$VAR_FILE_LOC"
         fi
 
         
         echo -n "Type root partition: "
         read -r root_part
+        add_global_var_to_file "root_part" "$root_part" "$VAR_FILE_LOC"
 
         echo -n "Type boot partition: "
         read -r boot_part
+        add_global_var_to_file "boot_part" "$boot_part" "$VAR_FILE_LOC"
 
         echo "You have selected the following partitions:"
         echo "boot partition: $boot_part"
@@ -214,13 +136,15 @@ partition_drive(){
 
 
 mkfs_partitions(){
+    local i
     ask "Do you want to encrypt root partition?"
     has_encryption="$?"
+    add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
         DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
-        # local enc_root_part="/dev/mapper/$DM_NAME"
+        add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
 
         local crypt_done="$FALSE"
         while [ "$crypt_done" -eq "$FALSE" ]
@@ -234,7 +158,8 @@ mkfs_partitions(){
 
     mount "/dev/mapper/$DM_NAME" "/mnt" -o compress-force=zstd
 
-    for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
+    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
+    for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
         btrfs subvolume create "/mnt/${BTRFS_SUBVOL[i]}"
     done
@@ -242,7 +167,8 @@ mkfs_partitions(){
 
     umount /mnt
 
-    for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))
+    # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
+    for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
         mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
     done   
@@ -300,6 +226,7 @@ generate_locales(){
     local is_done="$FALSE"
     local all_ok="$FALSE"
     local counter
+    local i
 
     # Loop to start all over again in case there is a mistake
     while [ "$all_ok" -eq "$FALSE" ]
@@ -323,7 +250,7 @@ generate_locales(){
                 if grep -E "#${locale}  $" "/mnt/etc/locale.gen" > /dev/null;
                 then
                     echo "Adding $locale to the list"
-                    selected_locales=("$selected_locales[@]" $locale)
+                    selected_locales=("${selected_locales[@]}" "$locale")
                 else
                     echo "$locale not found. Not added to the list."
                 fi
@@ -374,6 +301,7 @@ net_config(){
         # Create the hostname file
         echo -n "Type hostname: "
         read -r machine_name
+        add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
 
         if [ -z "$machine_name" ];
         then
@@ -435,6 +363,7 @@ install_microcode(){
 
     ask "Is it an Intel CPU?"
     is_intel="$?"
+    add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
 
     [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
     
@@ -449,9 +378,9 @@ install_bootloader(){
     # /etc/default/grub
     sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
-    local -r ROOT_UUID=$(blkid -s UUID -o value /dev/$DM_NAME)
+    local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE"
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
 
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -507,11 +436,12 @@ main(){
 
     install_bootloader
     
-    install_ssh
+    # install_ssh
 
     echo "Basic installation completed!. Now boot to root user and continue with the installation"
 
-    cp after_install.sh /mnt/root
+    cp ./*.sh /mnt/root
+    # cp "$VAR_FILE_LOC" "/mnt$VAR_FILE_LOC"
 }
 
 main "$@"
