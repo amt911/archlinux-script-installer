@@ -1,5 +1,13 @@
 #!/bin/bash
 
+readonly OPTIONAL_PKGS=("wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" )
+
+# COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
+readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
+readonly LIBREOFFICE_PKGS_DEPS=("hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
+readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
+readonly TEXLIVE_PKGS_DEPS=("biber")
+
 # for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
 
 source common_functions.sh
@@ -7,12 +15,10 @@ source common_functions.sh
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
 # TODO
-# DONE https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 # ROOTLESS SDDM UNDER WAYLAND
 # KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
 # add_sentence_end_quote y el otro. Junstarlos en uno solo.
-# PONER EN LOS PAQUETES DOSFSTOOLS
-# enable_crypt_keyfile -> Comprobar antes si existe el modulo en mkinitcpio
+# Asegurar que al menos un usuario esta en el grupo wheel
 
 redo_grub(){
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -26,8 +32,6 @@ enable_reisub(){
 }
 
 enable_trim(){
-    echo "##################################################################################################"
-
     pacman --noconfirm -S util-linux
     systemctl enable fstrim.timer
 
@@ -162,11 +166,29 @@ enable_ntfs(){
     echo "Installing ntfs-3g..."
     pacman --noconfirm -S ntfs-3g
 
-#     https://wiki.archlinux.org/title/NTFS
+    # https://wiki.archlinux.org/title/NTFS
+}
+
+get_sudo_user(){
+    grep -E "^wheel" /etc/gshadow | cut -d: -f4 | cut -d, -f1
 }
 
 install_optional_pkgs(){
-true
+    local -r USER=$(get_sudo_user)
+
+    sudo -S -i -u "$USER" yay -S "${OPTIONAL_PKGS[*]}"
+
+    if ask "Do you want to install LibreOffice?";
+    then
+        sudo -S -i -u "$USER" yay -S "${LIBREOFFICE_PKGS[*]}"
+        sudo -S -i -u "$USER" yay -S "${LIBREOFFICE_PKGS_DEPS[*]}"
+    fi
+
+    if ask "Do you want to install TexLive (LaTeX)?";
+    then
+        sudo -S -i -u "$USER" yay -S "${TEXLIVE_PKGS[*]}"
+        sudo -S -i -u "$USER" yay -S "${TEXLIVE_PKGS_DEPS[*]}"
+    fi
 }
 
 install_cpu_scaler(){
@@ -269,8 +291,6 @@ install_firewall(){
 }
 
 install_xorg(){
-    echo "##################################################################################################"
-
     local i
     for i in "${gpu_type[@]}"
     do
@@ -347,7 +367,6 @@ install_kvm(){
     local modprobe_cpu
     local cpu_string="kvm_amd"
 
-echo "##################################################################################################"
     [ "$is_intel" -eq "$TRUE" ] && cpu_string="kvm_intel"
 
     lsmod | grep "$cpu_string"
@@ -550,7 +569,6 @@ btrfs_snapshots(){
     btrfs subvolume delete /.snapshots
     mkdir /.snapshots
 
-    echo "##################################################################################################"
     local part="/dev/$DM_NAME"
 
     [ "$has_encryption" -eq "$TRUE" ] && part="/dev/mapper/$DM_NAME"
@@ -577,10 +595,6 @@ btrfs_snapshots(){
 disable_ssh_service(){
     systemctl disable sshd.service
     sed -i "s/^PermitRootLogin yes/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
-}
-
-get_sudo_user(){
-    grep -E "^wheel" /etc/gshadow | cut -d: -f4 | cut -d, -f1
 }
 
 install_yay(){
@@ -706,7 +720,6 @@ Select one of the following options:
     fi
 
     # Asking for the encrypted partition
-    echo "##################################################################################################"
     local sys_part="/dev/$DM_NAME"
 
 
@@ -905,7 +918,7 @@ enable_crypt_keyfile
             ;;
         
         5)
-            ask "Do you want to install optional packages?" && echo "WIP"
+            ask "Do you want to install optional packages?" && install_optional_pkgs
 
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
             then 
@@ -926,6 +939,7 @@ enable_crypt_keyfile
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
+    echo "CHECK FREEFILESYNC PACKAGE"
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service

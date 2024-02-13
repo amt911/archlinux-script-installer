@@ -10,24 +10,15 @@ source common_functions.sh
 # Poder detectar entre CSM y UEFI
 # Intentar hacer algún menú interactivo
 # Fix sleep command (it is a hacky way of doing things)
-# Mejorar la lógica para mostrar los locales disponibles.
 # Tener en cuenta mas opciones de swap
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
-# Investigar paccache https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
-# Asegurar que al menos un usuario esta en el grupo wheel
 
 # https://wiki.archlinux.org/title/Snapper#Preventing_slowdowns
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@var_tmp")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
 
 # Packages
-# 1
 readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
-readonly OPTIONAL_PKGS=("dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent")
-
-# COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
-readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex" "hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
-readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
 
 
 # Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
