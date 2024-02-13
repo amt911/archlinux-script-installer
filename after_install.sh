@@ -181,13 +181,13 @@ install_optional_pkgs(){
     if ask "Do you want to install LibreOffice?";
     then
         sudo -S -i -u "$USER" yay -S "${LIBREOFFICE_PKGS[*]}"
-        sudo -S -i -u "$USER" yay -S "${LIBREOFFICE_PKGS_DEPS[*]}"
+        sudo -S -i -u "$USER" yay -S --asdeps "${LIBREOFFICE_PKGS_DEPS[*]}"
     fi
 
     if ask "Do you want to install TexLive (LaTeX)?";
     then
         sudo -S -i -u "$USER" yay -S "${TEXLIVE_PKGS[*]}"
-        sudo -S -i -u "$USER" yay -S "${TEXLIVE_PKGS_DEPS[*]}"
+        sudo -S -i -u "$USER" yay -S --asdeps "${TEXLIVE_PKGS_DEPS[*]}"
     fi
 }
 
