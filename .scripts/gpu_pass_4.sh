@@ -96,14 +96,17 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
 
 main(){
     ask_global_vars
-
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 
-    get_all_sudo_users
+    if [ "$#" -gt "0" ];
+    then
+        create_config "$1"
+    else
+        get_all_sudo_users
 
-    clone_repo
-    create_directories
+        clone_repo
+        create_directories
+    fi
 }
 
-main
-create_config "win11"
+main "$@"
