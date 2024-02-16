@@ -431,8 +431,7 @@ main(){
 
     echo "Basic installation completed!. Now boot to root user and continue with the installation"
 
-    cp ./*.sh /mnt/root
-    # cp "$VAR_FILE_LOC" "/mnt$VAR_FILE_LOC"
+    cp ./*.sh /mnt/root/.scripts
 }
 
 main "$@"

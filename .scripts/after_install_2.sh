@@ -342,10 +342,12 @@ install_kde(){
 
     systemctl enable sddm.service
 
+    add_global_var_to_file "is_kde" "$TRUE" "$VAR_FILE_LOC"
     echo "Please reboot your system for changes to take effect."
 }
 
 install_gnome(){
+add_global_var_to_file "is_kde" "$FALSE" "$VAR_FILE_LOC"
 true
 }
 
