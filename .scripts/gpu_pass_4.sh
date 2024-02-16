@@ -67,7 +67,7 @@ set -x\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
 
     echo -e "modprobe vfio-pci\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
 
-    chmod +x "/etc/libvirt/hooks/qemu.d/"$VM_NAME"/prepare/begin/start.sh"
+    chmod +x "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
 
 
 #     Release script
@@ -91,7 +91,7 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
         echo -e "systemctl start display-manager\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
     fi
 
-    chmod +x "/etc/libvirt/hooks/qemu.d/"$VM_NAME"/release/end/stop.sh"
+    chmod +x "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
 }
 
 main(){
