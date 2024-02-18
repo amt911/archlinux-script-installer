@@ -47,7 +47,6 @@ set -x\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
         if [ "$is_kde" -eq "$TRUE" ];
         then
             local i
-
             for i in "${users[@]}"
             do
                 echo "systemctl --user -M $i@ stop plasma*" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
@@ -97,13 +96,12 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
 main(){
     ask_global_vars
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+    get_all_sudo_users
 
     if [ "$#" -gt "0" ];
     then
         create_config "$1"
     else
-        get_all_sudo_users
-
         clone_repo
         create_directories
     fi
