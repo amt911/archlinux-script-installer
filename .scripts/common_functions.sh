@@ -13,11 +13,11 @@ fi
 readonly TRUE=0
 readonly FALSE=1
 readonly VAR_FILENAME="vars.sh"
-readonly VAR_FILE_LOC="/root/$VAR_FILENAME"
+readonly VAR_FILE_LOC="/root/.scripts/$VAR_FILENAME"
 
-readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step")
-readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step")
-readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP")
+readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde")
+readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask")
+readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?")
 
 # GLOBAL VARS
 # 
@@ -34,6 +34,7 @@ readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Ple
 # is_laptop=true/false
 # gpu_type=amd/intel/nvidia
 # log_step="number"
+# is_kde
 
 
 # Asks for something to do in this script.

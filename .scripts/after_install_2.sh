@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly OPTIONAL_PKGS=("wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+readonly OPTIONAL_PKGS=("bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
@@ -231,15 +231,14 @@ enable_hw_acceleration(){
                 echo "Installing codecs for NVIDIA GPU..."
                 pacman --noconfirm -S libva-nvidia-driver nvidia-settings
 
-                echo "Checking if VA-API works on NVIDIA..."
+                # echo "Checking if VA-API works on NVIDIA..."
 
-                if ! vainfo;
+                echo "Creating environment variables..."
+
+                # It is mandatory to set the environment variables.
+                if [ "$is_laptop" -eq "$TRUE" ];
                 then
-                    echo "Creating environment variables..."
-
-                    if [ "$is_laptop" -eq "$TRUE" ];
-                    then
-                        echo "
+                    echo "
 # Mi config
 if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
 then
@@ -248,14 +247,10 @@ then
     export NVD_BACKEND=direct
 fi" >> /etc/profile
 
-                    else
-                        echo "LIBVA_DRIVER_NAME=nvidia
+                else
+                    echo "LIBVA_DRIVER_NAME=nvidia
 NVD_BACKEND=direct
 MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
-                    fi
-
-                else
-                    echo "Working correctly, there is nothing to do."
                 fi
                 ;;
 
@@ -342,10 +337,12 @@ install_kde(){
 
     systemctl enable sddm.service
 
+    add_global_var_to_file "is_kde" "$TRUE" "$VAR_FILE_LOC"
     echo "Please reboot your system for changes to take effect."
 }
 
 install_gnome(){
+add_global_var_to_file "is_kde" "$FALSE" "$VAR_FILE_LOC"
 true
 }
 
@@ -459,7 +456,7 @@ install_kvm(){
 
     systemctl enable libvirtd.service
 
-    echo "Please reboot your system to archiso again and copy after_install.sh $VAR_FILENAME common_functions.sh libvirt_subvol.sh to archiso's root folder."
+    echo "Please reboot your system to archiso again and copy .scripts foler to archiso's root folder."
     sleep 10
 }
 
@@ -871,6 +868,7 @@ main(){
 
             ask "Do you want to install KDE?" && install_kde
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
+            sleep 5
             reboot
             ;;
 
@@ -881,6 +879,7 @@ main(){
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
             # REBOOT
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            sleep 5
             reboot
             ;;
 
@@ -894,6 +893,7 @@ main(){
             # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
             ask "Do you want to install KVM?" && install_kvm
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            sleep 5
             reboot
             ;;
 
@@ -901,6 +901,7 @@ main(){
             # REBOOT TO ARCHISO
             ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            sleep 5
             reboot
             ;;
 
@@ -912,7 +913,8 @@ main(){
             ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
 
             ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
-            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
+            sleep 5
             reboot
             ;;
         
@@ -936,7 +938,7 @@ main(){
     echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
-    echo "It is normal for colord.service to fail. You can restart the service, but it won't make a difference."
+    echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
     echo "CHECK FREEFILESYNC PACKAGE"
     # IN PROCESS
