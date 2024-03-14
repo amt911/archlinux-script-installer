@@ -1,5 +1,12 @@
 #!/bin/bash
 
+readonly RED='\033[0;31m'
+readonly NO_COLOR='\033[0m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly BRIGHT_CYAN='\033[0;96m'
+readonly CYAN='\033[0;36m'
+
 # TODO
 # Mejorar la logica cuando hay array en add_global_var_to_file
 
@@ -69,6 +76,17 @@ ask(){
     done
 
     return "$res"
+}
+
+# Displays a colored message with the text passed as argument.
+# $1: Message to be written.
+# $2: Color to be displayed.
+# $3 (optional): Character to print as delimiter. If left empty, there will not be a delimiter.
+colored_msg(){
+    local -r MSG="$1"
+    local -r COLOR="$2"
+    
+    [ "$#" -eq "3" ] && 
 }
 
 # $1: Pattern to find
