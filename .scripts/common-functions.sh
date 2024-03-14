@@ -86,7 +86,7 @@ colored_msg(){
     local -r MSG="$1"
     local -r COLOR="$2"
     
-    [ "$#" -eq "3" ] && 
+    # [ "$#" -eq "3" ] &&
 }
 
 # $1: Pattern to find
