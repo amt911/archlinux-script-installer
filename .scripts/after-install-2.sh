@@ -10,7 +10,7 @@ readonly TEXLIVE_PKGS_DEPS=("biber")
 
 # for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
 
-source common_functions.sh
+source common-functions.sh
 
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")

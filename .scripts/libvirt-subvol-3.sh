@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source common_functions.sh
+source common-functions.sh
 
 
 readonly KVM_SUBVOL=("@var_lib_libvirt" "/var/lib/libvirt")

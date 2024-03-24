@@ -4,7 +4,7 @@
 # set static ip to archiso: ip a add 192.168.56.101/24 broadcast + dev enp0s8
 # testing commands for host: scp installer.sh root@192.168.56.101:/root
 
-source common_functions.sh
+source common-functions.sh
 
 # TODO:
 # Poder detectar entre CSM y UEFI
@@ -171,7 +171,7 @@ mkfs_partitions(){
 }
 
 install_packages(){
-    colored_msg "Base pacakges installation..." "${BRIGHT_CYAN}" "#"
+    colored_msg "Base packages installation..." "${BRIGHT_CYAN}" "#"
 
     echo -e "${BRIGHT_CYAN}The following packages are going to be installed: ${NO_COLOR}" "${BASE_PKGS[@]}"
 
@@ -448,7 +448,7 @@ main(){
 
     echo -e "${BRIGHT_CYAN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
 
-    cp ./*.sh /mnt/root/.scripts
+    cp -r /root/.scripts /mnt/root/.scripts
 }
 
 main "$@"
