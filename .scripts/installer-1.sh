@@ -26,7 +26,7 @@ readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "z
 # Paquetes desactualizados: veracrypt, btop, 
 
 loadkeys_tty(){
-    echo -n "Type desired locale (leave empty for default): "
+    echo -ne "${YELLOW}Type desired locale (leave empty for default): ${NO_COLOR}"
     read -r tty_layout
 
     if [ -z "$tty_layout" ];
@@ -34,7 +34,7 @@ loadkeys_tty(){
         tty_layout="us"
     fi
 
-    echo "Loading $tty_layout..."
+    echo -e "${BRIGHT_CYAN}Loading $tty_layout...${NO_COLOR}"
 
     loadkeys "$tty_layout"
 }
@@ -42,10 +42,6 @@ loadkeys_tty(){
 is_efi(){
     local res="$FALSE"
 
-    # cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null
-
-
-    # if [ "$?" -eq 0 ];
     if cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null;
     then
         res="$TRUE"
@@ -55,13 +51,15 @@ is_efi(){
 }
 
 check_current_time(){
+    colored_msg "Checking time..." "${BRIGHT_CYAN}" "#"
+
     timedatectl
 
     if ! ask "Is it accurate?";
     then
         local date
         
-        echo -n "Input the correct date (format: yyyy-mm-dd hh:mm:ss): "
+        echo -ne "${YELLOW}Input the correct date (format: yyyy-mm-dd hh:mm:ss): ${NO_COLOR}"
         read -r date
 
         timedatectl set-time "$date"
@@ -69,29 +67,31 @@ check_current_time(){
 }
 
 partition_drive(){
+    colored_msg "Select system partitions..." "${BRIGHT_CYAN}" "#"
+
     local part
     local selected="$FALSE"
     local correct_layout="$FALSE"
 
-    echo "These are your system partitions:" 
+    echo -e "${BRGIHT_CYAN}These are your system partitions:${NO_COLOR}" 
     lsblk
 
     while [ "$correct_layout" -eq "$FALSE" ]
     do
         while [ "$selected" -eq "$FALSE" ]
         do
-            echo -n "Type the drive/partitions where Arch Linux will be installed: "
+            echo -ne "${YELLOW}Type the drive/partitions where Arch Linux will be installed: ${NO_COLOR}"
             read -r part
 
             ask "You have selected $part. Is that correct?";
             selected="$?"
         done
 
-        echo "Opening cfdisk..."
+        echo -e "${BRIGHT_CYAN}Opening cfdisk...${NO_COLOR}"
         cfdisk "$part"
 
         sleep 2
-        echo "The partitions are as follows:"
+        echo -e "${BRIGHT_CYAN}The partitions are as follow:${NO_COLOR}"
         lsblk
 
         ask "Does it have a swap partition?"
@@ -101,24 +101,24 @@ partition_drive(){
         
         if [ "$has_swap" -eq "$TRUE" ];
         then
-            echo -n "Type swap partition: "
+            echo -ne "${YELLOW}Type swap partition: ${NO_COLOR}"
             read -r swap_part
             add_global_var_to_file "swap_part" "$swap_part" "$VAR_FILE_LOC"
         fi
 
         
-        echo -n "Type root partition: "
+        echo -ne "${YELLOW}Type root partition: ${NO_COLOR}"
         read -r root_part
         add_global_var_to_file "root_part" "$root_part" "$VAR_FILE_LOC"
 
-        echo -n "Type boot partition: "
+        echo -ne "${YELLOW}Type boot partition: ${NO_COLOR}"
         read -r boot_part
         add_global_var_to_file "boot_part" "$boot_part" "$VAR_FILE_LOC"
 
-        echo "You have selected the following partitions:"
-        echo "boot partition: $boot_part"
-        [ "$has_swap" -eq "$TRUE" ] && echo "swap partition: $swap_part"
-        echo "root partition: $root_part"
+        echo -e "${BRIGHT_CYAN}You have selected the following partitions:${NO_COLOR}"
+        echo -e "${BRIGHT_CYAN}boot partition:${NO_COLOR} $boot_part"
+        [ "$has_swap" -eq "$TRUE" ] && echo -e "${BRIGHT_CYAN}swap partition:${NO_COLOR} $swap_part"
+        echo -e "${BRIGHT_CYAN}root partition:${NO_COLOR} $root_part"
 
         ask "Is that correct?"
         correct_layout="$?"
@@ -127,6 +127,8 @@ partition_drive(){
 
 
 mkfs_partitions(){
+    colored_msg "Creating partitions..." "${BRIGHT_CYAN}" "#"
+
     local i
     ask "Do you want to encrypt root partition?"
     has_encryption="$?"
@@ -169,7 +171,9 @@ mkfs_partitions(){
 }
 
 install_packages(){
-    echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
+    colored_msg "Base pacakges installation..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}The following packages are going to be installed: ${NO_COLOR}" "${BASE_PKGS[@]}"
 
     if ask "Do you want to start installation?";
     then
@@ -185,15 +189,16 @@ configure_fstab(){
 # $1: Region
 # $2: City
 configure_timezone(){
+    colored_msg "Timezone configuration..." "${BRIGHT_CYAN}" "#"
     local region
     local city
 
     if [ "$#" -lt "2" ];
     then
-        echo -n "Timezone region: "
+        echo -ne "${YELLOW}Timezone region: ${NO_COLOR}"
         read -r region
 
-        echo -n "City: "
+        echo -ne "${YELLOW}City: ${NO_COLOR}"
         read -r city
     else
         region="$1"
@@ -207,7 +212,9 @@ configure_timezone(){
 
 # $1: locales
 generate_locales(){
-    echo "You are about to be shown all available locales, press q to exit"
+    colored_msg "Locale generation..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}You are about to be shown all available locales, press q to exit${NO_COLOR}"
     sleep 1
 
     less /mnt/etc/locale.gen
@@ -225,7 +232,7 @@ generate_locales(){
         # Loop to select all locales
         while [ "$is_done" -eq "$FALSE" ]
         do
-            echo -n "Please type in a locale (s to show locales and empty to continue): "
+            echo -ne "${YELLOW}Please type in a locale (s to show locales and empty to continue): ${NO_COLOR}"
             read -r locale
 
             case $locale in
@@ -240,10 +247,10 @@ generate_locales(){
                 *)
                 if grep -E "#${locale}  $" "/mnt/etc/locale.gen" > /dev/null;
                 then
-                    echo "Adding $locale to the list"
+                    echo -e "${BRIGHT_CYAN}Adding $locale to the list${NO_COLOR}"
                     selected_locales=("${selected_locales[@]}" "$locale")
                 else
-                    echo "$locale not found. Not added to the list."
+                    echo -e "${RED}$locale not found. Not added to the list.${NO_COLOR}"
                 fi
                 ;;
             esac
@@ -251,7 +258,7 @@ generate_locales(){
 
 
         # Lists all selected locales
-        echo "These are the selected locales:"
+        echo -e "${BRIGHT_CYAN}These are the selected locales:${NO_COLOR}"
 
         counter=1
         for i in "${selected_locales[@]}"
@@ -274,29 +281,32 @@ generate_locales(){
     # sed -i "s/#tres cuatro cinco/nano 33/g" example
     for i in "${selected_locales[@]}"
     do
-        echo "Adding ${i}..."
+        echo -e "${BRIGHT_CYAN}Adding ${i}...${NO_COLOR}"
         sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
     done
     unset i
 }
 
 write_keymap(){
+    colored_msg "Writing keymap to vconsole..." "${BRIGHT_CYAN}"
     echo "KEYMAP=$tty_layout" > /mnt/etc/vconsole.conf
 }
 
 net_config(){
+    colored_msg "Network configuration..." "${BRIGHT_CYAN}" "#"
+
     local hostname_ok="$FALSE"
 
     while [ "$hostname_ok" -eq "$FALSE" ]
     do
         # Create the hostname file
-        echo -n "Type hostname: "
+        echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
         read -r machine_name
         add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
 
         if [ -z "$machine_name" ];
         then
-            echo "Invalid hostname"
+            echo -e "${RED}Invalid hostname${NO_COLOR}"
         else
             hostname_ok="$TRUE"
         fi
@@ -317,6 +327,7 @@ net_config(){
 
 # Only encrypted swap, for now
 configure_swap(){
+    colored_msg "Encrypted swap configuration..." "${BRIGHT_CYAN}" "#"
     # https://wiki.archlinux.org/title/Dm-crypt/Swap_encryption
 
     # Create a consistent UUID for the partition
@@ -341,6 +352,8 @@ configure_mkinitcipio(){
 
 # $1: username. Empty for root
 set_password(){
+    colored_msg "Root password configuration..." "${BRIGHT_CYAN}" "#"
+
     if [ "$#" -eq "0" ];
     then
         arch-chroot /mnt passwd
@@ -350,6 +363,8 @@ set_password(){
 }
 
 install_microcode(){
+    colored_msg "CPU microcode..." "${BRIGHT_CYAN}" "#"
+
     local ucode="amd-ucode"
 
     ask "Is it an Intel CPU?"
@@ -362,6 +377,8 @@ install_microcode(){
 }
 
 install_bootloader(){
+    colored_msg "Bootloader installation..." "${BRIGHT_CYAN}" "#"
+
     # Install bootloader package
     arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
 
@@ -429,7 +446,7 @@ main(){
     
     # install_ssh
 
-    echo "Basic installation completed!. Now boot to root user and continue with the installation"
+    echo -e "${BRIGHT_CYAN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
 
     cp ./*.sh /mnt/root/.scripts
 }
