@@ -90,6 +90,7 @@ colored_msg(){
     
     if [ -n "$DELIM" ];
     then
+        printf "\n"
         printf "%0.b${COLOR}${DELIM}${NO_COLOR}" $(seq 1 $COLUMNS)
         printf "\n\n"
     fi
