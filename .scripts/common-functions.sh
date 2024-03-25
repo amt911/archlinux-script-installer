@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # TODO
 # Mejorar la logica cuando hay array en add_global_var_to_file
 
@@ -9,6 +10,13 @@ if [ "$COMMON_FUNCTIONS" != yes ]; then
 else
     return 0
 fi
+
+readonly RED='\033[0;31m'
+readonly NO_COLOR='\033[0m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly BRIGHT_CYAN='\033[0;96m'
+readonly CYAN='\033[0;36m'
 
 readonly TRUE=0
 readonly FALSE=1
@@ -50,7 +58,7 @@ ask(){
 
     while [ "$done" -eq "$FALSE" ]
     do
-        echo -n "$QUESTION (y/n): "
+        echo -ne "${YELLOW}$QUESTION (y/n): ${NO_COLOR}"
         read -r ans
 
         case $ans in
@@ -63,12 +71,30 @@ ask(){
                 done="$TRUE"
                 ;;
             * )
-                echo "other case"
+                echo -e "${RED}Unknown answer.${NO_COLOR} Please type it again."
                 ;;
         esac
     done
 
     return "$res"
+}
+
+# Displays a colored message with the text passed as argument.
+# $1: Message to be written.
+# $2: Color to be displayed.
+# $3 (optional): Character to print as delimiter. If left empty, there will not be a delimiter.
+colored_msg(){
+    local -r MSG="$1"
+    local -r COLOR="$2"
+    local -r DELIM="${3:-""}"
+    
+    if [ -n "$DELIM" ];
+    then
+        printf "\n"
+        printf "%0.b${COLOR}${DELIM}${NO_COLOR}" $(seq 1 $COLUMNS)
+        printf "\n\n"
+    fi
+    printf "%b\n\n" "${COLOR}${MSG}${NO_COLOR}"
 }
 
 # $1: Pattern to find
