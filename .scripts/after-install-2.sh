@@ -861,6 +861,43 @@ Unused packages: $RUK"
     systemctl start paccache.timer
 }
 
+
+# https://epson.com/Support/wa00821
+install_printer_drivers(){
+    local -r USER=$(get_sudo_user)
+
+    colored_msg "Printer specific drivers installation" "${BRIGHT_CYAN}" "#"
+
+    echo "Currently available printers:
+1) EPSON ET-2860 (also for other inkjet printers, check epson page for more info)"
+
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo -ne "${YELLOW}Choose an option (empty to exit):${NO_COLOR} "
+        read -r selection
+
+        case $selection in
+            "1")
+                echo -e "${BRIGHT_CYAN}Installing EPSON inkjet printer drivers...${NO_COLOR}"
+                sudo -S -i -u "$USER" yay -S epson-inkjet-printer-escpr epsonscan2 epsonscan2-non-free-plugin
+                is_done="$TRUE"
+                ;;
+
+            "")
+                echo -e "${BRIGHT_CYAN}Not installing anything${NO_COLOR}"
+                is_done="$TRUE"
+                ;;
+
+            *)
+                echo -e "${RED}Wrong option${NO_COLOR}"
+                is_done="$FALSE"
+                ;;
+        esac
+    done
+}
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -954,6 +991,7 @@ main(){
         
         5)
             ask "Do you want to install optional packages?" && install_optional_pkgs
+            ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
 
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
             then 
