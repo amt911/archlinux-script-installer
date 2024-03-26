@@ -446,7 +446,7 @@ main(){
     
     # install_ssh
 
-    echo -e "${BRIGHT_CYAN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
+    echo -e "${GREEN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
 
     cp -r /root/.scripts /mnt/root/.scripts
 }
