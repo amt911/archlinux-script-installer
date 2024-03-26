@@ -899,6 +899,7 @@ install_printer_drivers(){
 }
 
 # https://wiki.archlinux.org/title/Dual_boot_with_Windows#Time_standard
+# https://wiki.archlinux.org/title/systemd-timesyncd
 sync_time_dual_boot(){
     colored_msg "Time synchronization" "${BRIGHT_CYAN}" "#"
 
