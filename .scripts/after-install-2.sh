@@ -898,6 +898,24 @@ install_printer_drivers(){
     done
 }
 
+# https://wiki.archlinux.org/title/Dual_boot_with_Windows#Time_standard
+sync_time_dual_boot(){
+    colored_msg "Time synchronization" "${BRIGHT_CYAN}" "#"
+
+    if ask "Are you dual-booting another OS that is not Linux?";
+    then
+        echo -e "${GREEN}IMPORTANT!!${NO_COLOR} You need to complete the configuration by going to the following URL: ${BRIGHT_CYAN}https://wiki.archlinux.org/title/System_time#UTC_in_Microsoft_Windows${NO_COLOR}
+
+In any case, you can use the *.reg file located in .scripts/win64 to install it on Windows."
+    fi
+
+    echo -e "${BRIGHT_CYAN}Enabling NTP...${NO_COLOR}"
+    systemctl enable systemd-timesyncd.service
+    systemctl start systemd-timesyncd.service
+
+    timedatectl set-ntp true
+}
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -925,6 +943,7 @@ main(){
 
     case $log_step in
         0)
+            ask "Do you want to enable NTP?" && sync_time_dual_boot
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
             install_shells
