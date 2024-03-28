@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly OPTIONAL_PKGS=("compsize" "shellcheck" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+readonly OPTIONAL_PKGS=("meld" "compsize" "shellcheck" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
