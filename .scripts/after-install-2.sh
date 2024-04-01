@@ -345,7 +345,7 @@ install_xorg(){
                 then
                     # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
                     echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
-                    echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    echo "# options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
                     # To check if it is working: 
                     # cat /sys/module/nvidia_drm/parameters/modeset
                 fi

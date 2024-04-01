@@ -100,7 +100,7 @@ main(){
 
 
     # First, it checks if qemu hooks are installed
-    if [ ! -f "/etc/libvirt/hooks" ];
+    if [ ! -d "/etc/libvirt/hooks" ];
     then
         clone_repo
         create_directories    
