@@ -446,6 +446,8 @@ install_ssh(){
 
 # Main function
 main(){
+    [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
     loadkeys_tty
 
     if is_efi;

@@ -276,6 +276,7 @@ get_var_value_index(){
 
 # $1: Global var index.
 # $2 (optional): File location to be written. Defaults to $VAR_FILE_LOC
+# post: Saves variable value to a file and assigns it on runtime.
 # return: TRUE if it went OK, FALSE in any other case.
 ask_global_var_by_index(){
     local -r INDEX="$1"
@@ -445,7 +446,7 @@ ask_global_var_by_index(){
         is_done="$FALSE"
 
     else
-#         EN caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
+        # En caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
         tmp="$(get_var_value_index "$INDEX" "$var_file")"
     fi
 
