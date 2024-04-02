@@ -286,6 +286,7 @@ ask_global_var_by_index(){
     local ask_yes_no
     local var_file="$VAR_FILE_LOC"
     local res
+    local res_bool="$FALSE"
 
     [ "$#" -gt "1" ] && var_file="$2"
 
@@ -321,7 +322,6 @@ ask_global_var_by_index(){
                 done
 
                 res="$tmp"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
                 ;;
 
             "type")
@@ -335,18 +335,14 @@ ask_global_var_by_index(){
                 done
 
                 res="$tmp"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
                 ;;
 
             "DM_NAME")
                 res="$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')"
-
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')" "$var_file"
                 ;;
 
             "MACHINE_NAME")
                 res="$(cat /etc/hostname)"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$(cat /etc/hostname)" "$var_file"
                 ;;
 
             "root_fs")
@@ -375,7 +371,6 @@ ask_global_var_by_index(){
                     is_done="$?"
                 done
                 res="$tmp"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
             ;;
 
             "gpu")
@@ -395,7 +390,7 @@ ask_global_var_by_index(){
                             is_element_in_array "amd" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                echo "amd"
+                                # echo "amd"
                                 aux_arr=("${aux_arr[@]}" "amd")
                             fi
                             ;;
@@ -404,7 +399,7 @@ ask_global_var_by_index(){
                             is_element_in_array "nvidia" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                echo "nvidia"
+                                # echo "nvidia"
                                 aux_arr=("${aux_arr[@]}" "nvidia")
                             fi
                             ;;
@@ -413,7 +408,7 @@ ask_global_var_by_index(){
                             is_element_in_array "intel" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                echo "intel"
+                                # echo "intel"
                                 aux_arr=("${aux_arr[@]}" "intel")
                             fi
                             ;;
@@ -430,27 +425,26 @@ ask_global_var_by_index(){
                             ;;
                     esac
                 done
-                res="("${aux_arr[@]}")"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "aux_arr" "$var_file" "$TRUE"
+                res="aux_arr"
+                res_bool="$TRUE"
                 ;;
 
             "log_step")
                 res="0"
-                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "0" "$var_file" "$FALSE"
                 ;;
             *)
                 echo "WIP"
                 ;;
         esac
 
-        is_done="$FALSE"
+        add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$res" "$var_file" "$res_bool"
 
     else
         # En caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
         tmp="$(get_var_value_index "$INDEX" "$var_file")"
     fi
 
-#     Assign variable.
+    # Assign variable so the script can use it.
     declare -g "${GLOBAL_VARS_NAME[$INDEX]}"="$tmp"
 
     return "$TRUE"
@@ -472,7 +466,7 @@ get_var_value_by_name(){
         return "$FALSE"
     fi
 
-    echo "$(get_var_value_index "$(get_var_index_by_name "$NAME")" "$var_file")"
+    get_var_value_index "$(get_var_index_by_name "$NAME")" "$var_file"
 
     return "$TRUE"
 }
