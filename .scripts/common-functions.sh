@@ -23,9 +23,9 @@ readonly FALSE=1
 readonly VAR_FILENAME="vars.sh"
 readonly VAR_FILE_LOC="/root/.scripts/$VAR_FILENAME"
 
-readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde")
-readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask")
-readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?")
+readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde" "root_fs")
+readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask" "root_fs")
+readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Used root filesystem: ")
 
 # GLOBAL VARS
 # 
@@ -43,6 +43,7 @@ readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Ple
 # gpu_type=amd/intel/nvidia
 # log_step="number"
 # is_kde
+# root_fs
 
 
 # Asks for something to do in this script.
@@ -235,135 +236,267 @@ is_element_in_array(){
     return "$FALSE"
 }
 
-# $1 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
-ask_global_vars(){
-    local var_file="$VAR_FILE_LOC"
-    local tmp
-    local aux_arr
-
-    [ "$#" -gt "0" ] && var_file="$1"
-
-    local is_done="$FALSE"
-    local ask_yes_no
+# $1: Name. Must be the same.
+# return: Variable name.
+get_var_index_by_name(){
+    local -r NAME="$1"
 
     local i
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
-        if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[i]}=" "$var_file" > /dev/null;
+        if [ "${GLOBAL_VARS_NAME[i]}" = "$NAME" ];
         then
-            # echo "No existe ${GLOBAL_VARS_NAME[i]}"
-            case ${VARS_TYPE[i]} in
-                "ask")
-                    while [ "$is_done" -eq "$FALSE" ]
-                    do
-                        ask "${VARS_QUESTIONS[i]}"
-                        tmp="$?"
-
-                        case $tmp in
-                        "$TRUE")
-                            ask_yes_no=yes
-                            ;;
-                        "$FALSE")
-                            ask_yes_no=no
-                            ;;
-                        *)
-                            ask_yes_no="unknown error"
-                            ;;
-                        esac
-
-                        ask "You have selected $ask_yes_no. Is that correct?"
-                        is_done="$?"
-                    done
-
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
-                    ;;
-
-                "type")
-                    while [ "$is_done" -eq "$FALSE" ]
-                    do
-                        echo -n "${VARS_QUESTIONS[i]}"
-                        read -r tmp
-
-                        ask "You have selected $tmp. Is that correct?"
-                        is_done="$?"
-                    done
-
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$tmp" "$var_file"
-                    ;;
-
-                "DM_NAME")
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')" "$var_file"
-                    ;;
-
-                "MACHINE_NAME")
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "$(cat /etc/hostname)" "$var_file"
-                    ;;
-                
-                "gpu")
-                    aux_arr=()
-                    while [ "$is_done" -eq "$FALSE" ]
-                    do
-                        echo "GPU list:
-    1) amd
-    2) nvidia
-    3) intel
-"
-                        echo -n "Please select GPU (empty to finish): "
-                        read -r tmp
-
-                        case $tmp in
-                            "1"|[aA][mM][dD])
-                                is_element_in_array "amd" aux_arr
-                                if [ "$?" -eq "$FALSE" ];
-                                then
-                                    echo "amd"
-                                    aux_arr=("${aux_arr[@]}" "amd")
-                                fi
-                                ;;
-
-                            "2"|[nN][vV][iI][dD][iI][aA])
-                                is_element_in_array "nvidia" aux_arr
-                                if [ "$?" -eq "$FALSE" ];
-                                then
-                                    echo "nvidia"
-                                    aux_arr=("${aux_arr[@]}" "nvidia")
-                                fi                            
-                                ;;
-
-                            "3"|[iI][nN][tT][eE][lL])
-                                is_element_in_array "intel" aux_arr
-                                if [ "$?" -eq "$FALSE" ];
-                                then
-                                    echo "intel"
-                                    aux_arr=("${aux_arr[@]}" "intel")
-                                fi
-                                ;;
-
-                            "")
-                                echo "These are the selected GPU(s): ${aux_arr[*]}"
-                                ask "Are these correct?"
-                                is_done="$?"
-
-                                [ "$is_done" -eq "$FALSE" ] && aux_arr=()
-                                ;;
-                            *)
-                                echo "Unknown option"
-                                ;;                      
-                        esac
-                    done
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "aux_arr" "$var_file" "$TRUE"
-                    ;;
-                    
-                "log_step")
-                    add_global_var_to_file "${GLOBAL_VARS_NAME[i]}" "0" "$var_file" "$FALSE"
-                    ;;                    
-                *)
-                    echo "WIP"
-                    ;;
-            esac
-
-            is_done="$FALSE"
+            echo "$i"
+            break
         fi
     done
     unset i
+
+    return "$TRUE"
+}
+
+# $1: Index of global var.
+# $2 (optional): Var file location. Defaults to $VAR_FILE_LOC
+get_var_value_index(){
+    local -r INDEX="$1"
+    local var_file="$VAR_FILE_LOC"
+
+    [ "$#" -gt "1" ] && var_file="$2"
+
+    if [ "$INDEX" -lt "0" ] || [ "$INDEX" -ge "${#GLOBAL_VARS_NAME[@]}" ] || [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null;
+    then
+        echo "error"
+        return "$FALSE"
+    fi
+
+    awk 'BEGIN{OFS=FS="="} /'"${GLOBAL_VARS_NAME[$INDEX]}"'/{print $2}' "$var_file" | cut -d"\"" -f2
+
+    return "$TRUE"
+}
+
+# $1: Global var index.
+# $2 (optional): File location to be written. Defaults to $VAR_FILE_LOC
+# return: TRUE if it went OK, FALSE in any other case.
+ask_global_var_by_index(){
+    local -r INDEX="$1"
+    local is_done="$FALSE"
+    local tmp
+    local aux_arr
+    local ask_yes_no
+    local var_file="$VAR_FILE_LOC"
+    local res
+
+    [ "$#" -gt "1" ] && var_file="$2"
+
+    if [ "$INDEX" -lt "0" ] || [ "$INDEX" -ge "${#GLOBAL_VARS_NAME[@]}" ];
+    then
+        echo -e "${RED}Out of bounds index.${NO_COLOR}"
+        return "$FALSE"
+    fi
+
+    if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null;
+    then
+        case ${VARS_TYPE[$INDEX]} in
+            "ask")
+                while [ "$is_done" -eq "$FALSE" ]
+                do
+                    ask "${VARS_QUESTIONS[$INDEX]}"
+                    tmp="$?"
+
+                    case $tmp in
+                    "$TRUE")
+                        ask_yes_no=yes
+                        ;;
+                    "$FALSE")
+                        ask_yes_no=no
+                        ;;
+                    *)
+                        ask_yes_no="unknown error"
+                        ;;
+                    esac
+
+                    ask "You have selected $ask_yes_no. Is that correct?"
+                    is_done="$?"
+                done
+
+                res="$tmp"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
+                ;;
+
+            "type")
+                while [ "$is_done" -eq "$FALSE" ]
+                do
+                    echo -n "${VARS_QUESTIONS[$INDEX]}"
+                    read -r tmp
+
+                    ask "You have selected $tmp. Is that correct?"
+                    is_done="$?"
+                done
+
+                res="$tmp"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
+                ;;
+
+            "DM_NAME")
+                res="$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')"
+
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$(grep -E "^root_part" "$var_file" | awk 'BEGIN{OFS=FS="/"} {print substr($NF,1,length($NF)-1)}')" "$var_file"
+                ;;
+
+            "MACHINE_NAME")
+                res="$(cat /etc/hostname)"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$(cat /etc/hostname)" "$var_file"
+                ;;
+
+            "root_fs")
+                echo "Available filesystems:
+1) btrfs
+2) ext4"
+                while [ "$is_done" -eq "$FALSE" ]
+                do
+                    echo -n "${VARS_QUESTIONS[$INDEX]}"
+                    read -r tmp
+
+                    case $tmp in
+                        [Bb][Tt][Rr][Ff][Ss]|1)
+                            tmp="btrfs"
+                            ;;
+
+                        [Ee][Xx][Tt]4|2)
+                            tmp="ext4"
+                            ;;
+                        *)
+                            tmp="unknown"
+                            ;;
+                    esac
+
+                    ask "You have selected $tmp. Is that correct?"
+                    is_done="$?"
+                done
+                res="$tmp"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$tmp" "$var_file"
+            ;;
+
+            "gpu")
+                aux_arr=()
+                while [ "$is_done" -eq "$FALSE" ]
+                do
+                    echo "GPU list:
+1) amd
+2) nvidia
+3) intel
+"
+                    echo -n "Please select GPU (empty to finish): "
+                    read -r tmp
+
+                    case $tmp in
+                        "1"|[aA][mM][dD])
+                            is_element_in_array "amd" aux_arr
+                            if [ "$?" -eq "$FALSE" ];
+                            then
+                                echo "amd"
+                                aux_arr=("${aux_arr[@]}" "amd")
+                            fi
+                            ;;
+
+                        "2"|[nN][vV][iI][dD][iI][aA])
+                            is_element_in_array "nvidia" aux_arr
+                            if [ "$?" -eq "$FALSE" ];
+                            then
+                                echo "nvidia"
+                                aux_arr=("${aux_arr[@]}" "nvidia")
+                            fi
+                            ;;
+
+                        "3"|[iI][nN][tT][eE][lL])
+                            is_element_in_array "intel" aux_arr
+                            if [ "$?" -eq "$FALSE" ];
+                            then
+                                echo "intel"
+                                aux_arr=("${aux_arr[@]}" "intel")
+                            fi
+                            ;;
+
+                        "")
+                            echo "These are the selected GPU(s): ${aux_arr[*]}"
+                            ask "Are these correct?"
+                            is_done="$?"
+
+                            [ "$is_done" -eq "$FALSE" ] && aux_arr=()
+                            ;;
+                        *)
+                            echo "Unknown option"
+                            ;;
+                    esac
+                done
+                res="("${aux_arr[@]}")"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "aux_arr" "$var_file" "$TRUE"
+                ;;
+
+            "log_step")
+                res="0"
+                add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "0" "$var_file" "$FALSE"
+                ;;
+            *)
+                echo "WIP"
+                ;;
+        esac
+
+        is_done="$FALSE"
+
+    else
+#         EN caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
+        tmp="$(get_var_value_index "$INDEX" "$var_file")"
+    fi
+
+#     Assign variable.
+    declare -g "${GLOBAL_VARS_NAME[$INDEX]}"="$tmp"
+
+    return "$TRUE"
+}
+
+
+
+# $1: Name of global var. Must be the same
+# $2 (optional): Var file location. Defaults to $VAR_FILE_LOC
+get_var_value_by_name(){
+    local -r NAME="$1"
+    local var_file="$VAR_FILE_LOC"
+
+    [ "$#" -gt "1" ] && var_file="$2"
+
+    if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null;
+    then
+        echo "error"
+        return "$FALSE"
+    fi
+
+    echo "$(get_var_value_index "$(get_var_index_by_name "$NAME")" "$var_file")"
+
+    return "$TRUE"
+}
+
+# $1 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
+ask_global_vars(){
+    local var_file="$VAR_FILE_LOC"
+    [ "$#" -gt "0" ] && var_file="$1"
+
+    local i
+    for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
+    do
+        ask_global_var_by_index "$i" "$var_file"
+    done
+    unset i
+}
+
+# $1: Var name. MUST be the same name.
+# $2 (optional): Var file location. Defaults to $VAR_FILE_LOC
+ask_global_var(){
+    local -r NAME="$1"
+    local -r INDEX="$(get_var_index_by_name "$NAME")"
+    local var_file="$VAR_FILE_LOC"
+
+    [ "$#" -gt "1" ] && var_file="$2"
+
+    ask_global_var_by_index "$INDEX"
 }

@@ -18,7 +18,7 @@ readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@v
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
 
 # Packages
-readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
+BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
 
 
 # Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
@@ -125,7 +125,7 @@ partition_drive(){
     done
 }
 
-
+# https://wiki.archlinux.org/title/installation_guide#Format_the_partitions
 mkfs_partitions(){
     colored_msg "Creating partitions..." "${BRIGHT_CYAN}" "#"
 
@@ -134,22 +134,54 @@ mkfs_partitions(){
     has_encryption="$?"
     add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
 
+    DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
+    add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
+
+    local drive="/dev/$DM_NAME"
+
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
-        add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
-
         local crypt_done="$FALSE"
         while [ "$crypt_done" -eq "$FALSE" ]
         do
             cryptsetup luksFormat "$root_part" && cryptsetup open "$root_part" "$DM_NAME" && crypt_done="$TRUE"
         done
+
+        drive="/dev/mapper/$DM_NAME"
     fi
 
-    mkfs.btrfs -L root "/dev/mapper/$DM_NAME"
-    mkfs.fat -F32 "$boot_part"
+#     Ask for the preferred filesystem
+    ask_global_var "root_fs"
 
-    mount "/dev/mapper/$DM_NAME" "/mnt" -o compress-force=zstd
+    case $root_fs in
+        "btrfs")
+            create_btrfs "$drive"
+            ;;
+
+        "ext4")
+            echo "Exiting..."
+            exit
+            ;;
+
+        *)
+            echo "error"
+            exit
+            ;;
+    esac
+
+    mkfs.fat -F32 "$boot_part"
+    mount --mkdir "$boot_part" /mnt/boot
+}
+
+# https://wiki.archlinux.org/title/btrfs
+# $1: Drive location
+create_btrfs(){
+    local -r DRIVE="$1"
+
+    local i
+    mkfs.btrfs -L root "$DRIVE"
+
+    mount "$DRIVE" "/mnt" -o compress-force=zstd
 
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
     for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
@@ -163,15 +195,16 @@ mkfs_partitions(){
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
     for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
-        mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
-    done   
-    unset i 
-
-    mount --mkdir "$boot_part" /mnt/boot
+        mount --mkdir "$DRIVE" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
+    done
+    unset i
 }
 
+# https://wiki.archlinux.org/title/installation_guide#Install_essential_packages
 install_packages(){
     colored_msg "Base packages installation..." "${BRIGHT_CYAN}" "#"
+
+    install_microcode
 
     echo -e "${BRIGHT_CYAN}The following packages are going to be installed: ${NO_COLOR}" "${BASE_PKGS[@]}"
 
@@ -339,13 +372,16 @@ configure_swap(){
     echo "/dev/mapper/swap none swap defaults 0 0" >> /mnt/etc/fstab
 }
 
+
+# https://wiki.archlinux.org/title/Mkinitcpio#Common_hooks
+# https://wiki.archlinux.org/title/dm-crypt/Encrypting_an_entire_system
 configure_mkinitcipio(){
     sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
 
     # sed -e '/#1/a\' -e "new line" -i example
 
     # Insert new hook after commented one
-    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs autodetect modconf kms block keyboard sd-vconsole sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
+    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
 
     arch-chroot /mnt mkinitcpio -P
 }
@@ -362,8 +398,10 @@ set_password(){
     fi
 }
 
+# https://wiki.archlinux.org/title/Microcode
+# https://wiki.archlinux.org/title/installation_guide#Install_essential_packages
 install_microcode(){
-    colored_msg "CPU microcode..." "${BRIGHT_CYAN}" "#"
+#     colored_msg "CPU microcode..." "${BRIGHT_CYAN}" "#"
 
     local ucode="amd-ucode"
 
@@ -373,7 +411,9 @@ install_microcode(){
 
     [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
     
-    arch-chroot /mnt pacman --noconfirm -S "$ucode"
+#     arch-chroot /mnt pacman --noconfirm -S "$ucode"
+
+    BASE_PKGS=("${BASE_PKGS[@]}" "$ucode")
 }
 
 install_bootloader(){
@@ -392,9 +432,6 @@ install_bootloader(){
 
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-
-    install_microcode
-
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
