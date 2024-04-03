@@ -159,6 +159,8 @@ add_option_inside_luks_options(){
     fi
 }
 
+# Adds a variable and its value to a file and sets in runtime so it can be used by the running program.
+# 
 # $1: Variable name. If it is an array, pass just the variable name
 # $2: Value. Can be overwritten by another call
 # $3: File location
@@ -212,9 +214,10 @@ fi
         else
             echo -e "$first_char$VAR_NAME=(${VALUE[*]})" >> "$FILE_LOC"
         fi
-
-
     fi
+
+    # Assign variable so the script can use it.
+    declare -g "$VAR_NAME"="$VALUE"
 }
 
 
@@ -454,9 +457,6 @@ ask_global_var_by_index(){
         # En caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
         res="$(get_var_value_index "$INDEX" "$var_file")"
     fi
-
-    # Assign variable so the script can use it.
-    declare -g "${GLOBAL_VARS_NAME[$INDEX]}"="$res"
 
     return "$TRUE"
 }

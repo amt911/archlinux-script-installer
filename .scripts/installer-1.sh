@@ -14,6 +14,10 @@ source common-functions.sh
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
 
 # https://wiki.archlinux.org/title/Snapper#Preventing_slowdowns
+# https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
+# /var/lib/docker
+# /var/lib/machines
+# /var/lib/postgres
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@var_tmp")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
 
@@ -153,7 +157,7 @@ mkfs_partitions(){
             ;;
 
         "ext4")
-            echo "Exiting..."
+            create_ext4
             exit
             ;;
 
@@ -165,6 +169,11 @@ mkfs_partitions(){
 
     mkfs.fat -F32 "$boot_part"
     mount --mkdir "$boot_part" /mnt/boot
+}
+
+# https://wiki.archlinux.org/title/ext4
+create_ext4(){
+    true
 }
 
 # https://wiki.archlinux.org/title/btrfs
@@ -319,6 +328,10 @@ write_keymap(){
     echo "KEYMAP=$tty_layout" > /mnt/etc/vconsole.conf
 }
 
+# https://wiki.archlinux.org/title/Network_configuration#Network_managers
+# https://wiki.archlinux.org/title/Installation_guide#Install_essential_packages
+# https://wiki.archlinux.org/title/Installation_guide#Network_configuration
+# https://wiki.archlinux.org/title/Network_configuration#localhost_is_resolved_over_the_network
 net_config(){
     colored_msg "Network configuration..." "${BRIGHT_CYAN}" "#"
 
@@ -328,9 +341,6 @@ net_config(){
     do
         # Create the hostname file
         ask_global_var "machine_name"
-        # echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
-        # read -r machine_name
-        # add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
 
         if [ -z "$machine_name" ];
         then
@@ -342,8 +352,6 @@ net_config(){
 
     echo "$machine_name" > /mnt/etc/hostname
 
-    # TODO: Modify files with IPv4 and IPv6, install NetworkManager and enable its service.
-
     # On my usual config, I use IPv6 as localhost6
     echo -e "127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ${machine_name}" >> /mnt/etc/hosts
 
@@ -354,6 +362,7 @@ net_config(){
 
 
 # Only encrypted swap, for now
+# https://wiki.archlinux.org/title/dm-crypt/Swap_encryption#Without_suspend-to-disk_support
 configure_swap(){
     colored_msg "Encrypted swap configuration..." "${BRIGHT_CYAN}" "#"
     # https://wiki.archlinux.org/title/Dm-crypt/Swap_encryption
@@ -412,6 +421,8 @@ install_microcode(){
     BASE_PKGS=("${BASE_PKGS[@]}" "$ucode")
 }
 
+# https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader
+# https://wiki.archlinux.org/title/GRUB
 install_bootloader(){
     colored_msg "Bootloader installation..." "${BRIGHT_CYAN}" "#"
 
@@ -419,7 +430,6 @@ install_bootloader(){
     arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
 
     # Configure GRUB
-    # /etc/default/grub
     sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
     local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")

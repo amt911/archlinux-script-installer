@@ -42,6 +42,7 @@ redo_grub(){
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
+# https://wiki.archlinux.org/title/Keyboard_shortcuts#Kernel_(SysRq)
 enable_reisub(){
     colored_msg "Enabling REISUB..." "${BRIGHT_CYAN}" "#"
 
@@ -50,6 +51,8 @@ enable_reisub(){
     redo_grub "$FALSE"
 }
 
+# https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
+# https://wiki.archlinux.org/title/Dm-crypt/Specialties#Discard/TRIM_support_for_solid_state_drives_(SSD)
 enable_trim(){
     colored_msg "Enabling TRIM..." "${BRIGHT_CYAN}" "#"
 
@@ -124,6 +127,7 @@ add_users(){
     done
 }
 
+# https://wiki.archlinux.org/title/Pacman#Enabling_parallel_downloads
 improve_pacman(){
     colored_msg "Improving pacman performance..." "${BRIGHT_CYAN}" "#"
 
@@ -136,6 +140,7 @@ improve_pacman(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/Official_repositories#multilib
 enable_multilib(){
     colored_msg "Enabling multilib repository..." "${BRIGHT_CYAN}" "#"
 
@@ -150,6 +155,8 @@ enable_multilib(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/reflector
+# https://wiki.archlinux.org/title/general_recommendations#Mirrors
 enable_reflector(){
     colored_msg "Enabling reflector..." "${BRIGHT_CYAN}" "#"
 
@@ -157,12 +164,15 @@ enable_reflector(){
     systemctl enable reflector.timer
 }
 
+# https://wiki.archlinux.org/title/Btrfs#Scrub
 btrfs_scrub(){
     colored_msg "Enabling btrfs scrub on root subvolume..." "${BRIGHT_CYAN}" "#"
 
     systemctl enable btrfs-scrub@-.timer
 }
 
+# https://wiki.archlinux.org/title/Arch_User_Repository
+# https://wiki.archlinux.org/title/makepkg#Parallel_compilation
 prepare_for_aur(){
     colored_msg "Preparing system for AUR packages..." "${BRIGHT_CYAN}" "#"
 
@@ -179,6 +189,7 @@ prepare_for_aur(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/Bluetooth
 install_bluetooth(){
     colored_msg "Installing bluetooth..." "${BRIGHT_CYAN}" "#"
 
@@ -231,6 +242,9 @@ install_optional_pkgs(){
     fi
 }
 
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#Scaling_drivers
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#amd_pstate
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
@@ -254,6 +268,8 @@ install_cpu_scaler(){
     fi
 }
 
+# https://wiki.archlinux.org/title/Hardware_video_acceleration
+# https://github.com/elFarto/nvidia-vaapi-driver?tab=readme-ov-file#configuration
 enable_hw_acceleration(){
     colored_msg "Enabling hardware acceleration..." "${BRIGHT_CYAN}" "#"
 
@@ -303,6 +319,8 @@ MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
     done
 }
 
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
 install_firewall(){
     colored_msg "Installing firewall..." "${BRIGHT_CYAN}" "#"
 
@@ -320,6 +338,8 @@ install_firewall(){
     ufw limit ssh
 }
 
+# https://wiki.archlinux.org/title/Xorg
+# https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 install_xorg(){
     local i
     for i in "${gpu_type[@]}"
@@ -383,6 +403,16 @@ install_gnome(){
 }
 
 # Huge pages, iommu, nested virt, tpm, uefi,
+# https://wiki.archlinux.org/title/KVM
+# https://wiki.archlinux.org/title/KVM#Nested_virtualization
+# https://wiki.archlinux.org/title/KVM#Secure_Boot
+# https://wiki.archlinux.org/title/KVM#Enabling_huge_pages
+# https://wiki.archlinux.org/title/QEMU
+# https://wiki.archlinux.org/title/QEMU#Booting_in_UEFI_mode
+# https://wiki.archlinux.org/title/QEMU#Trusted_Platform_Module_emulation
+# https://wiki.archlinux.org/title/Libvirt
+# https://wiki.archlinux.org/title/Libvirt#UEFI_support
+# https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Enabling_IOMMU
 install_kvm(){
     colored_msg "Installing KVM..." "${BRIGHT_CYAN}" "#"
 
@@ -491,6 +521,8 @@ install_kvm(){
     systemctl enable libvirtd.service
 }
 
+# https://wiki.archlinux.org/title/CUPS
+# https://wiki.archlinux.org/title/SANE
 install_printer(){
     colored_msg "Installing printer service..." "${BRIGHT_CYAN}" "#"
 
@@ -506,6 +538,7 @@ install_printer(){
     ask "Do you want to install Simple Scan?" && pacman --noconfirm -S simple-scan
 }
 
+# https://wiki.archlinux.org/title/Microsoft_fonts#Extracting_fonts_from_a_Windows_ISO
 install_ms_fonts(){
     colored_msg "Installing Microsoft Fonts..." "${BRIGHT_CYAN}" "#"
 
@@ -585,6 +618,10 @@ install_lsd(){
     pacman --noconfirm -S lsd ttf-hack-nerd
 }
 
+# https://wiki.archlinux.org/title/snapper
+# https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
+# https://wiki.archlinux.org/title/snapper#Configuration_of_snapper_and_mount_point
+# https://wiki.archlinux.org/title/snapper#Wrapping_pacman_transactions_in_snapshots
 btrfs_snapshots(){
     colored_msg "Installing snapper and snap-pac..." "${BRIGHT_CYAN}" "#"
 
@@ -646,6 +683,8 @@ install_yay(){
     redo_grub
 }
 
+# https://wiki.archlinux.org/title/dm-crypt/Device_encryption#Keyfiles
+# https://wiki.archlinux.org/title/Dm-crypt/System_configuration#rd.luks.key
 enable_crypt_keyfile(){
     colored_msg "Enabling keyfile at boot..." "${BRIGHT_CYAN}" "#"
 
@@ -804,6 +843,7 @@ Select one of the following options:
 }
 
 # CHECK FOR ROOTLESS WAYLAND!!!
+# https://wiki.archlinux.org/title/SDDM#Rootless
 rootless_kde(){
     colored_msg "Enabling rootless SDDM..." "${BRIGHT_CYAN}" "#"
 
@@ -824,6 +864,7 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
+# https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
 enable_paccache(){
     colored_msg "Enabling paccache..." "${BRIGHT_CYAN}" "#"
 
@@ -929,6 +970,7 @@ enable_envycontrol(){
     envycontrol -s integrated
 }
 
+# https://wiki.archlinux.org/title/MSI_GE75_Raider_8SX#Driver_options
 laptop_extra_config(){
     # aqui va la configuracion de los altavoces y eso
     echo -e "${BRIGHT_CYAN}Enabling modprobe config...${NO_COLOR}"
