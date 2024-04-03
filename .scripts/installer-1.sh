@@ -73,11 +73,11 @@ partition_drive(){
     local selected="$FALSE"
     local correct_layout="$FALSE"
 
-    echo -e "${BRGIHT_CYAN}These are your system partitions:${NO_COLOR}" 
-    lsblk
-
     while [ "$correct_layout" -eq "$FALSE" ]
     do
+        echo -e "${BRGIHT_CYAN}These are your system partitions:${NO_COLOR}"
+        lsblk
+
         while [ "$selected" -eq "$FALSE" ]
         do
             echo -ne "${YELLOW}Type the drive/partitions where Arch Linux will be installed: ${NO_COLOR}"
@@ -94,26 +94,17 @@ partition_drive(){
         echo -e "${BRIGHT_CYAN}The partitions are as follow:${NO_COLOR}"
         lsblk
 
-        ask "Does it have a swap partition?"
-        has_swap="$?"
-        add_global_var_to_file "has_swap" "$has_swap" "$VAR_FILE_LOC"
+        ask_global_var "has_swap" "$TRUE"
 
         
         if [ "$has_swap" -eq "$TRUE" ];
         then
-            echo -ne "${YELLOW}Type swap partition: ${NO_COLOR}"
-            read -r swap_part
-            add_global_var_to_file "swap_part" "$swap_part" "$VAR_FILE_LOC"
+            ask_global_var "swap_part" "$TRUE"
         fi
 
         
-        echo -ne "${YELLOW}Type root partition: ${NO_COLOR}"
-        read -r root_part
-        add_global_var_to_file "root_part" "$root_part" "$VAR_FILE_LOC"
-
-        echo -ne "${YELLOW}Type boot partition: ${NO_COLOR}"
-        read -r boot_part
-        add_global_var_to_file "boot_part" "$boot_part" "$VAR_FILE_LOC"
+        ask_global_var "root_part" "$TRUE"
+        ask_global_var "boot_part" "$TRUE"
 
         echo -e "${BRIGHT_CYAN}You have selected the following partitions:${NO_COLOR}"
         echo -e "${BRIGHT_CYAN}boot partition:${NO_COLOR} $boot_part"
@@ -122,6 +113,7 @@ partition_drive(){
 
         ask "Is that correct?"
         correct_layout="$?"
+        selected="$FALSE"
     done
 }
 
@@ -130,12 +122,14 @@ mkfs_partitions(){
     colored_msg "Creating partitions..." "${BRIGHT_CYAN}" "#"
 
     local i
-    ask "Do you want to encrypt root partition?"
-    has_encryption="$?"
-    add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
+    # ask "Do you want to encrypt root partition?"
+    # has_encryption="$?"
+    # add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
+    ask_global_var "has_encryption"
 
-    DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
-    add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
+    # DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
+    # add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
+    ask_global_var "DM_NAME"
 
     local drive="/dev/$DM_NAME"
 
@@ -333,9 +327,10 @@ net_config(){
     while [ "$hostname_ok" -eq "$FALSE" ]
     do
         # Create the hostname file
-        echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
-        read -r machine_name
-        add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
+        ask_global_var "machine_name"
+        # echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
+        # read -r machine_name
+        # add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
 
         if [ -z "$machine_name" ];
         then
@@ -405,9 +400,10 @@ install_microcode(){
 
     local ucode="amd-ucode"
 
-    ask "Is it an Intel CPU?"
-    is_intel="$?"
-    add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
+    # ask "Is it an Intel CPU?"
+    # is_intel="$?"
+    # add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
+    ask_global_var "is_intel"
 
     [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
     
