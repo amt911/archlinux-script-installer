@@ -275,6 +275,7 @@ get_var_value_index(){
 }
 
 # $1: Global var index.
+# $2 (true/false) (optiona): Override already set variable? Defaults to false.
 # $2 (optional): File location to be written. Defaults to $VAR_FILE_LOC
 # post: Saves variable value to a file and assigns it on runtime.
 # return: TRUE if it went OK, FALSE in any other case.
@@ -287,8 +288,10 @@ ask_global_var_by_index(){
     local var_file="$VAR_FILE_LOC"
     local res
     local res_bool="$FALSE"
+    local override="$FALSE"
 
-    [ "$#" -gt "1" ] && var_file="$2"
+    [ "$#" -gt "1" ] && override="$2"
+    [ "$#" -gt "2" ] && var_file="$3"
 
     if [ "$INDEX" -lt "0" ] || [ "$INDEX" -ge "${#GLOBAL_VARS_NAME[@]}" ];
     then
@@ -296,7 +299,7 @@ ask_global_var_by_index(){
         return "$FALSE"
     fi
 
-    if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null;
+    if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null || [ "$override" -eq "$TRUE" ];
     then
         case ${VARS_TYPE[$INDEX]} in
             "ask")
@@ -342,7 +345,14 @@ ask_global_var_by_index(){
                 ;;
 
             "MACHINE_NAME")
-                res="$(cat /etc/hostname)"
+                if ask "Do you want to add a custom hostname? (no to get the one from Live CD)";
+                then
+                    echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
+                    read -r res
+                else
+                    res="$(cat /etc/hostname)"
+                    echo -e "${BRIGHT_CYAN}Got${NO_COLOR} ${YELLOW}$res${NO_COLOR} ${BRIGHT_CYAN}as hostname.${NO_COLOR}"
+                fi
                 ;;
 
             "root_fs")
@@ -367,8 +377,12 @@ ask_global_var_by_index(){
                             ;;
                     esac
 
-                    ask "You have selected $tmp. Is that correct?"
-                    is_done="$?"
+                    # Only enter to confirmation stage if the option exists.
+                    if [ "$tmp" != "unknown" ];
+                    then
+                        ask "You have selected $tmp. Is that correct?"
+                        is_done="$?"
+                    fi
                 done
                 res="$tmp"
             ;;
@@ -390,7 +404,6 @@ ask_global_var_by_index(){
                             is_element_in_array "amd" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                # echo "amd"
                                 aux_arr=("${aux_arr[@]}" "amd")
                             fi
                             ;;
@@ -399,7 +412,6 @@ ask_global_var_by_index(){
                             is_element_in_array "nvidia" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                # echo "nvidia"
                                 aux_arr=("${aux_arr[@]}" "nvidia")
                             fi
                             ;;
@@ -408,7 +420,6 @@ ask_global_var_by_index(){
                             is_element_in_array "intel" aux_arr
                             if [ "$?" -eq "$FALSE" ];
                             then
-                                # echo "intel"
                                 aux_arr=("${aux_arr[@]}" "intel")
                             fi
                             ;;
@@ -441,11 +452,11 @@ ask_global_var_by_index(){
 
     else
         # En caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
-        tmp="$(get_var_value_index "$INDEX" "$var_file")"
+        res="$(get_var_value_index "$INDEX" "$var_file")"
     fi
 
     # Assign variable so the script can use it.
-    declare -g "${GLOBAL_VARS_NAME[$INDEX]}"="$tmp"
+    declare -g "${GLOBAL_VARS_NAME[$INDEX]}"="$res"
 
     return "$TRUE"
 }
@@ -471,27 +482,38 @@ get_var_value_by_name(){
     return "$TRUE"
 }
 
-# $1 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
+# $1 (true/false) (optiona): Override already set variable? Defaults to false.
+# $2 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
 ask_global_vars(){
     local var_file="$VAR_FILE_LOC"
-    [ "$#" -gt "0" ] && var_file="$1"
+    local override="$FALSE"
+
+    [ "$#" -gt "0" ] && override="$1"
+    [ "$#" -gt "1" ] && var_file="$2"
 
     local i
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
-        ask_global_var_by_index "$i" "$var_file"
+        ask_global_var_by_index "$i" "$override" "$var_file"
     done
     unset i
 }
 
+# Asks about the value of the global var with the name passed as argument
+# and sets it inside the script and inside a file.
+# 
 # $1: Var name. MUST be the same name.
-# $2 (optional): Var file location. Defaults to $VAR_FILE_LOC
+# $2 (true/false) (optiona): Override already set variable? Defaults to false.
+# $3 (optional): Var file location. Defaults to $VAR_FILE_LOC
 ask_global_var(){
+
     local -r NAME="$1"
     local -r INDEX="$(get_var_index_by_name "$NAME")"
     local var_file="$VAR_FILE_LOC"
+    local override="$FALSE"
 
-    [ "$#" -gt "1" ] && var_file="$2"
+    [ "$#" -gt "1" ] && override="$2"
+    [ "$#" -gt "2" ] && var_file="$3"
 
-    ask_global_var_by_index "$INDEX"
+    ask_global_var_by_index "$INDEX" "$override" "$var_file"
 }
