@@ -979,7 +979,7 @@ laptop_extra_config(){
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
 
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"

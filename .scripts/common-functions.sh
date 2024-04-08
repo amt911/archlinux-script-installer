@@ -25,8 +25,8 @@ readonly VAR_FILE_LOC="/root/.scripts/$VAR_FILENAME"
 
 readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde" "root_fs")
 readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask" "root_fs")
-readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Used root filesystem: ")
-
+readonly VARS_QUESTIONS_LIVE=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Used root filesystem: ")
+readonly VARS_QUESTIONS=("Do you want to create swap?" "Do you want to use zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Do you want to encrypt your system?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Please type desired filesystem for root partition: ")
 # GLOBAL VARS
 # 
 # tty_layout
@@ -159,7 +159,15 @@ add_option_inside_luks_options(){
     fi
 }
 
-# Adds a variable and its value to a file and sets in runtime so it can be used by the running program.
+# It currently works only for normal vars, NOT ARRAYS!.
+# 
+# $1: Var name
+# $2: Value
+declare_global_var(){
+    declare -g "$1"="$2"
+}
+
+# Adds a variable and its value to a file.
 # 
 # $1: Variable name. If it is an array, pass just the variable name
 # $2: Value. Can be overwritten by another call
@@ -169,9 +177,7 @@ add_option_inside_luks_options(){
 add_global_var_to_file(){
     local -r VAR_NAME="$1"
     local -r FILE_LOC="$3"
-    local is_array="$FALSE"
-
-    [ "$#" -eq "4" ] && is_array="$4"
+    local is_array="${4:-"$FALSE"}"
 
     if [ "$is_array" -eq "$TRUE" ];
     then
@@ -215,9 +221,6 @@ fi
             echo -e "$first_char$VAR_NAME=(${VALUE[*]})" >> "$FILE_LOC"
         fi
     fi
-
-    # Assign variable so the script can use it.
-    declare -g "$VAR_NAME"="$VALUE"
 }
 
 
@@ -262,9 +265,7 @@ get_var_index_by_name(){
 # $2 (optional): Var file location. Defaults to $VAR_FILE_LOC
 get_var_value_index(){
     local -r INDEX="$1"
-    local var_file="$VAR_FILE_LOC"
-
-    [ "$#" -gt "1" ] && var_file="$2"
+    local var_file="${2:-"$VAR_FILE_LOC"}"
 
     if [ "$INDEX" -lt "0" ] || [ "$INDEX" -ge "${#GLOBAL_VARS_NAME[@]}" ] || [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null;
     then
@@ -278,8 +279,9 @@ get_var_value_index(){
 }
 
 # $1: Global var index.
-# $2 (true/false) (optiona): Override already set variable? Defaults to false.
-# $2 (optional): File location to be written. Defaults to $VAR_FILE_LOC
+# $2 (true/false) (optional): Ask the question if it was on a Live CD? Defaults to false.
+# $3 (true/false) (optional): Override already set variable? Defaults to false.
+# $4 (optional): File location to be written. Defaults to $VAR_FILE_LOC
 # post: Saves variable value to a file and assigns it on runtime.
 # return: TRUE if it went OK, FALSE in any other case.
 ask_global_var_by_index(){
@@ -288,19 +290,27 @@ ask_global_var_by_index(){
     local tmp
     local aux_arr
     local ask_yes_no
-    local var_file="$VAR_FILE_LOC"
+    local var_file="${4:-"$VAR_FILE_LOC"}"
     local res
     local res_bool="$FALSE"
-    local override="$FALSE"
+    local override="${3:-"$FALSE"}"
+    local -r Q_TYPE="${2:-"$FALSE"}"
 
-    [ "$#" -gt "1" ] && override="$2"
-    [ "$#" -gt "2" ] && var_file="$3"
 
     if [ "$INDEX" -lt "0" ] || [ "$INDEX" -ge "${#GLOBAL_VARS_NAME[@]}" ];
     then
         echo -e "${RED}Out of bounds index.${NO_COLOR}"
-        return "$FALSE"
+        exit "$FALSE"
     fi
+
+
+    if [ "$Q_TYPE" -eq "$TRUE" ];
+    then
+        declare -n FINAL_QUESTIONS=VARS_QUESTIONS_LIVE
+    else
+        declare -n FINAL_QUESTIONS=VARS_QUESTIONS
+    fi
+    
 
     if [ ! -f "$var_file" ] || ! grep -E "^${GLOBAL_VARS_NAME[$INDEX]}=" "$var_file" > /dev/null || [ "$override" -eq "$TRUE" ];
     then
@@ -308,7 +318,7 @@ ask_global_var_by_index(){
             "ask")
                 while [ "$is_done" -eq "$FALSE" ]
                 do
-                    ask "${VARS_QUESTIONS[$INDEX]}"
+                    ask "${FINAL_QUESTIONS[$INDEX]}"
                     tmp="$?"
 
                     case $tmp in
@@ -333,7 +343,7 @@ ask_global_var_by_index(){
             "type")
                 while [ "$is_done" -eq "$FALSE" ]
                 do
-                    echo -n "${VARS_QUESTIONS[$INDEX]}"
+                    echo -n "${FINAL_QUESTIONS[$INDEX]}"
                     read -r tmp
 
                     ask "You have selected $tmp. Is that correct?"
@@ -348,7 +358,7 @@ ask_global_var_by_index(){
                 ;;
 
             "MACHINE_NAME")
-                if ask "Do you want to add a custom hostname? (no to get the one from Live CD)";
+                if ask "Do you want to add a custom hostname? (no to get the name from Live CD)";
                 then
                     echo -ne "${YELLOW}Type hostname: ${NO_COLOR}"
                     read -r res
@@ -364,7 +374,7 @@ ask_global_var_by_index(){
 2) ext4"
                 while [ "$is_done" -eq "$FALSE" ]
                 do
-                    echo -n "${VARS_QUESTIONS[$INDEX]}"
+                    echo -n "${FINAL_QUESTIONS[$INDEX]}"
                     read -r tmp
 
                     case $tmp in
@@ -458,9 +468,10 @@ ask_global_var_by_index(){
         res="$(get_var_value_index "$INDEX" "$var_file")"
     fi
 
+    declare_global_var "${GLOBAL_VARS_NAME[$INDEX]}" "$res"
+
     return "$TRUE"
 }
-
 
 
 # $1: Name of global var. Must be the same
@@ -482,19 +493,18 @@ get_var_value_by_name(){
     return "$TRUE"
 }
 
-# $1 (true/false) (optiona): Override already set variable? Defaults to false.
-# $2 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
+# $1 (true/false) (optional): Override already set variable? Defaults to false.
+# $2 (true/false) (optional): Ask the question if it was on a Live CD? Defaults to false.
+# $3 (optional): Variable file location. If not set, uses $VAR_FILE_LOC
 ask_global_vars(){
-    local var_file="$VAR_FILE_LOC"
-    local override="$FALSE"
-
-    [ "$#" -gt "0" ] && override="$1"
-    [ "$#" -gt "1" ] && var_file="$2"
+    local override="${1:-"$FALSE"}"
+    local -r Q_TYPE="${2:-"$FALSE"}"
+    local var_file="${3:-"$VAR_FILE_LOC"}"
 
     local i
     for ((i=0; i<${#GLOBAL_VARS_NAME[@]}; i++))
     do
-        ask_global_var_by_index "$i" "$override" "$var_file"
+        ask_global_var_by_index "$i" "$Q_TYPE" "$override" "$var_file"
     done
     unset i
 }
@@ -503,17 +513,15 @@ ask_global_vars(){
 # and sets it inside the script and inside a file.
 # 
 # $1: Var name. MUST be the same name.
-# $2 (true/false) (optiona): Override already set variable? Defaults to false.
-# $3 (optional): Var file location. Defaults to $VAR_FILE_LOC
+# $2 (true/false) (optional): Ask the question if it was on a Live CD? Defaults to false.
+# $3 (true/false) (optiona): Override already set variable? Defaults to false.
+# $4 (optional): Var file location. Defaults to $VAR_FILE_LOC
 ask_global_var(){
-
     local -r NAME="$1"
     local -r INDEX="$(get_var_index_by_name "$NAME")"
-    local var_file="$VAR_FILE_LOC"
-    local override="$FALSE"
+    local var_file="${4:-"$VAR_FILE_LOC"}"
+    local override="${3:-"$FALSE"}"
+    local -r Q_TYPE="${2:-"$FALSE"}"
 
-    [ "$#" -gt "1" ] && override="$2"
-    [ "$#" -gt "2" ] && var_file="$3"
-
-    ask_global_var_by_index "$INDEX" "$override" "$var_file"
+    ask_global_var_by_index "$INDEX" "$Q_TYPE" "$override" "$var_file"
 }
