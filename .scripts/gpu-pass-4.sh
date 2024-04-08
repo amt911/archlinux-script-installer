@@ -94,7 +94,7 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
     get_all_sudo_users
 
