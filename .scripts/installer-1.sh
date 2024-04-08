@@ -22,8 +22,8 @@ readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@v
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
 
 # Packages
-BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
-
+BASE_PKGS=("base" "linux" "linux-firmware" "nano" "vi" "zsh")
+readonly BASE_PKGS_BTRFS=("btrfs-progs")
 
 # Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
 # Paquetes especiales de la torre que requieren configuración adidional: cpupower
@@ -98,17 +98,17 @@ partition_drive(){
         echo -e "${BRIGHT_CYAN}The partitions are as follow:${NO_COLOR}"
         lsblk
 
-        ask_global_var "has_swap" "$TRUE"
+        ask_global_var "has_swap" "$TRUE" "$TRUE"
 
         
         if [ "$has_swap" -eq "$TRUE" ];
         then
-            ask_global_var "swap_part" "$TRUE"
+            ask_global_var "swap_part" "$TRUE" "$TRUE"
         fi
 
         
-        ask_global_var "root_part" "$TRUE"
-        ask_global_var "boot_part" "$TRUE"
+        ask_global_var "root_part" "$TRUE" "$TRUE"
+        ask_global_var "boot_part" "$TRUE" "$TRUE"
 
         echo -e "${BRIGHT_CYAN}You have selected the following partitions:${NO_COLOR}"
         echo -e "${BRIGHT_CYAN}boot partition:${NO_COLOR} $boot_part"
@@ -129,11 +129,11 @@ mkfs_partitions(){
     # ask "Do you want to encrypt root partition?"
     # has_encryption="$?"
     # add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
-    ask_global_var "has_encryption"
+    ask_global_var "has_encryption" "$TRUE"
 
     # DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
     # add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
-    ask_global_var "DM_NAME"
+    ask_global_var "DM_NAME" "$TRUE"
 
     local drive="/dev/$DM_NAME"
 
@@ -149,7 +149,7 @@ mkfs_partitions(){
     fi
 
 #     Ask for the preferred filesystem
-    ask_global_var "root_fs"
+    ask_global_var "root_fs" "$TRUE"
 
     case $root_fs in
         "btrfs")
@@ -208,6 +208,8 @@ install_packages(){
     colored_msg "Base packages installation..." "${BRIGHT_CYAN}" "#"
 
     install_microcode
+
+    [ "$root_fs" = "btrfs" ] && BASE_PKGS=("${BASE_PKGS[@]}" "${BASE_PKGS_BTRFS[@]}")
 
     echo -e "${BRIGHT_CYAN}The following packages are going to be installed: ${NO_COLOR}" "${BASE_PKGS[@]}"
 
@@ -340,7 +342,7 @@ net_config(){
     while [ "$hostname_ok" -eq "$FALSE" ]
     do
         # Create the hostname file
-        ask_global_var "machine_name"
+        ask_global_var "machine_name" "$TRUE"
 
         if [ -z "$machine_name" ];
         then
@@ -412,7 +414,7 @@ install_microcode(){
     # ask "Is it an Intel CPU?"
     # is_intel="$?"
     # add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
-    ask_global_var "is_intel"
+    ask_global_var "is_intel" "$TRUE"
 
     [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
     

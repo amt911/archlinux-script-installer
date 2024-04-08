@@ -1,6 +1,7 @@
 #!/bin/bash
 
-readonly OPTIONAL_PKGS=("btdu" "meld" "compsize" "shellcheck" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
@@ -226,6 +227,8 @@ install_optional_pkgs(){
     colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
 
     local -r USER=$(get_sudo_user)
+
+    [ "$root_fs" = "btrfs" ] && OPTIONAL_PKGS=( "${OPTIONAL_PKGS[@]}" "${OPTIONAL_PKGS_BTRFS[@]}")
 
     sudo -S -i -u "$USER" yay -S "${OPTIONAL_PKGS[@]}"
 
@@ -995,7 +998,7 @@ main(){
             ask "Do you want to enable periodic pacman cache cleaning?" && enable_paccache
             ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
             ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-            ask "Do you want to enable scrub?" && btrfs_scrub
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to enable scrub?" && btrfs_scrub
             ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
             ask "Do you want to install an AUR helper?" && install_yay
             ask "Do you want to install bluetooth service?" && install_bluetooth
@@ -1046,7 +1049,7 @@ main(){
             ask "Do you want to install lsd and hack nerd font?" && install_lsd
             ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
 
-            ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
             ask_reboot
             ;;
