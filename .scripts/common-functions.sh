@@ -514,7 +514,7 @@ ask_global_vars(){
 # 
 # $1: Var name. MUST be the same name.
 # $2 (true/false) (optional): Ask the question if it was on a Live CD? Defaults to false.
-# $3 (true/false) (optiona): Override already set variable? Defaults to false.
+# $3 (true/false) (optional): Override already set variable? Defaults to false.
 # $4 (optional): Var file location. Defaults to $VAR_FILE_LOC
 ask_global_var(){
     local -r NAME="$1"
