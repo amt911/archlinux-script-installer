@@ -569,9 +569,9 @@ install_ms_fonts(){
             ask "You have selected $drive. Is that correct?"
             is_done="$?"
         done
-    fi
 
-    mount "$drive" /mnt -o ro,noexec
+        mount "$drive" /mnt -o ro,noexec
+    fi
 
     local location
     is_done="$FALSE"
@@ -595,12 +595,12 @@ install_ms_fonts(){
     cp "$location" /root
 
     # We now unmount the drive since we dont need it anymore
-    umount /mnt
+    [ "$OTHER_DRIVE" -eq "$TRUE" ] && umount /mnt
 
     # We extract the contents of the ISO
     local -r ISO_LOCATION=$(echo "$location" | awk 'BEGIN{ OFS=FS="/" } { print "/root",$NF }')
-    7z e "$ISO_LOCATION" sources/install.wim
-    7z e install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -ofonts/
+    7z e "$ISO_LOCATION" sources/install.wim -o/root
+    7z e /root/install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -o/root/fonts/
 
     mkdir -p /usr/local/share/fonts/WindowsFonts
     cp /root/fonts/* /usr/local/share/fonts/WindowsFonts/
@@ -610,7 +610,7 @@ install_ms_fonts(){
     fc-cache-32 --force
 
     echo -e "${BRIGHT_CYAN}Deleting Windows image and tmp directories...${NO_COLOR}"
-    rm -r "$ISO_LOCATION" "/root/install.wim /root/fonts"
+    rm -r "$ISO_LOCATION" "/root/install.wim" "/root/fonts"
 
     [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
