@@ -961,6 +961,47 @@ In any case, you can use the *.reg file located in .scripts/win64 to install it 
     timedatectl set-ntp true
 }
 
+
+# https://wiki.archlinux.org/title/fan_speed_control
+# https://gitlab.com/coolercontrol/coolercontrol/-/wikis/config-files
+enable_fan_control(){
+    local -r USER=$(get_sudo_user)
+    colored_msg "Installing Fan Control software..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}Installing CoolerControl...${NO_COLOR}"
+    sudo -S -i -u "$USER" yay -S coolercontrol
+
+    echo -e "${BRIGHT_CYAN}Enabling coolercontrol service...${NO_COLOR}"
+    systemctl enable --now coolercontrold
+
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo "
+Options:
+1) Torre-AMD (R9 5900X - NVIDIA RTXC 3080 Ti)
+"
+
+        echo -ne "${YELLOW}Please select an option: ${NO_COLOR}"
+        read -r selection
+
+        case $selection in
+            "1")
+                echo -e "${BRIGHT_CYAN}Copying profile...${NO_COLOR}"
+                cp CoolerControl/Torre-AMD/* /etc/coolercontrol
+                systemctl restart coolercontrold
+                is_done="$TRUE"
+                ;;
+            
+            *)
+                echo -e "${RED}Wrong option${NO_COLOR}"
+                is_done="$FALSE"
+                ;;
+        esac
+    done
+}
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -1057,7 +1098,8 @@ main(){
         5)
             ask "Do you want to install optional packages?" && install_optional_pkgs
             ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
-
+            [ "$is_laptop" -eq "$FALSE" ] && ask "Do you want to enable fan control?" && enable_fan_control
+            
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
             then 
                 ask "Do you want to enable laptop specific features?" && laptop_extra_config
@@ -1072,7 +1114,7 @@ main(){
     esac
 
 
-    echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
+    # echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
