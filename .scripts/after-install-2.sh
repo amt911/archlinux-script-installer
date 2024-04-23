@@ -1,6 +1,7 @@
 #!/bin/bash
 
-readonly OPTIONAL_PKGS=("btdu" "meld" "compsize" "shellcheck" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("lazygit" "neofetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
@@ -42,6 +43,7 @@ redo_grub(){
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
+# https://wiki.archlinux.org/title/Keyboard_shortcuts#Kernel_(SysRq)
 enable_reisub(){
     colored_msg "Enabling REISUB..." "${BRIGHT_CYAN}" "#"
 
@@ -50,6 +52,8 @@ enable_reisub(){
     redo_grub "$FALSE"
 }
 
+# https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
+# https://wiki.archlinux.org/title/Dm-crypt/Specialties#Discard/TRIM_support_for_solid_state_drives_(SSD)
 enable_trim(){
     colored_msg "Enabling TRIM..." "${BRIGHT_CYAN}" "#"
 
@@ -124,6 +128,7 @@ add_users(){
     done
 }
 
+# https://wiki.archlinux.org/title/Pacman#Enabling_parallel_downloads
 improve_pacman(){
     colored_msg "Improving pacman performance..." "${BRIGHT_CYAN}" "#"
 
@@ -136,6 +141,7 @@ improve_pacman(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/Official_repositories#multilib
 enable_multilib(){
     colored_msg "Enabling multilib repository..." "${BRIGHT_CYAN}" "#"
 
@@ -150,6 +156,8 @@ enable_multilib(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/reflector
+# https://wiki.archlinux.org/title/general_recommendations#Mirrors
 enable_reflector(){
     colored_msg "Enabling reflector..." "${BRIGHT_CYAN}" "#"
 
@@ -157,12 +165,15 @@ enable_reflector(){
     systemctl enable reflector.timer
 }
 
+# https://wiki.archlinux.org/title/Btrfs#Scrub
 btrfs_scrub(){
     colored_msg "Enabling btrfs scrub on root subvolume..." "${BRIGHT_CYAN}" "#"
 
     systemctl enable btrfs-scrub@-.timer
 }
 
+# https://wiki.archlinux.org/title/Arch_User_Repository
+# https://wiki.archlinux.org/title/makepkg#Parallel_compilation
 prepare_for_aur(){
     colored_msg "Preparing system for AUR packages..." "${BRIGHT_CYAN}" "#"
 
@@ -179,6 +190,7 @@ prepare_for_aur(){
     sleep 3
 }
 
+# https://wiki.archlinux.org/title/Bluetooth
 install_bluetooth(){
     colored_msg "Installing bluetooth..." "${BRIGHT_CYAN}" "#"
 
@@ -216,6 +228,8 @@ install_optional_pkgs(){
 
     local -r USER=$(get_sudo_user)
 
+    [ "$root_fs" = "btrfs" ] && OPTIONAL_PKGS=( "${OPTIONAL_PKGS[@]}" "${OPTIONAL_PKGS_BTRFS[@]}")
+
     sudo -S -i -u "$USER" yay -S "${OPTIONAL_PKGS[@]}"
 
     if ask "Do you want to install LibreOffice?";
@@ -231,6 +245,9 @@ install_optional_pkgs(){
     fi
 }
 
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#Scaling_drivers
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#amd_pstate
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
@@ -254,6 +271,8 @@ install_cpu_scaler(){
     fi
 }
 
+# https://wiki.archlinux.org/title/Hardware_video_acceleration
+# https://github.com/elFarto/nvidia-vaapi-driver?tab=readme-ov-file#configuration
 enable_hw_acceleration(){
     colored_msg "Enabling hardware acceleration..." "${BRIGHT_CYAN}" "#"
 
@@ -303,6 +322,8 @@ MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
     done
 }
 
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
 install_firewall(){
     colored_msg "Installing firewall..." "${BRIGHT_CYAN}" "#"
 
@@ -320,6 +341,8 @@ install_firewall(){
     ufw limit ssh
 }
 
+# https://wiki.archlinux.org/title/Xorg
+# https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 install_xorg(){
     local i
     for i in "${gpu_type[@]}"
@@ -383,6 +406,16 @@ install_gnome(){
 }
 
 # Huge pages, iommu, nested virt, tpm, uefi,
+# https://wiki.archlinux.org/title/KVM
+# https://wiki.archlinux.org/title/KVM#Nested_virtualization
+# https://wiki.archlinux.org/title/KVM#Secure_Boot
+# https://wiki.archlinux.org/title/KVM#Enabling_huge_pages
+# https://wiki.archlinux.org/title/QEMU
+# https://wiki.archlinux.org/title/QEMU#Booting_in_UEFI_mode
+# https://wiki.archlinux.org/title/QEMU#Trusted_Platform_Module_emulation
+# https://wiki.archlinux.org/title/Libvirt
+# https://wiki.archlinux.org/title/Libvirt#UEFI_support
+# https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Enabling_IOMMU
 install_kvm(){
     colored_msg "Installing KVM..." "${BRIGHT_CYAN}" "#"
 
@@ -491,6 +524,8 @@ install_kvm(){
     systemctl enable libvirtd.service
 }
 
+# https://wiki.archlinux.org/title/CUPS
+# https://wiki.archlinux.org/title/SANE
 install_printer(){
     colored_msg "Installing printer service..." "${BRIGHT_CYAN}" "#"
 
@@ -506,6 +541,7 @@ install_printer(){
     ask "Do you want to install Simple Scan?" && pacman --noconfirm -S simple-scan
 }
 
+# https://wiki.archlinux.org/title/Microsoft_fonts#Extracting_fonts_from_a_Windows_ISO
 install_ms_fonts(){
     colored_msg "Installing Microsoft Fonts..." "${BRIGHT_CYAN}" "#"
 
@@ -533,9 +569,9 @@ install_ms_fonts(){
             ask "You have selected $drive. Is that correct?"
             is_done="$?"
         done
-    fi
 
-    mount "$drive" /mnt -o ro,noexec
+        mount "$drive" /mnt -o ro,noexec
+    fi
 
     local location
     is_done="$FALSE"
@@ -559,12 +595,12 @@ install_ms_fonts(){
     cp "$location" /root
 
     # We now unmount the drive since we dont need it anymore
-    umount /mnt
+    [ "$OTHER_DRIVE" -eq "$TRUE" ] && umount /mnt
 
     # We extract the contents of the ISO
     local -r ISO_LOCATION=$(echo "$location" | awk 'BEGIN{ OFS=FS="/" } { print "/root",$NF }')
-    7z e "$ISO_LOCATION" sources/install.wim
-    7z e install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -ofonts/
+    7z e "$ISO_LOCATION" sources/install.wim -o/root
+    7z e /root/install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -o/root/fonts/
 
     mkdir -p /usr/local/share/fonts/WindowsFonts
     cp /root/fonts/* /usr/local/share/fonts/WindowsFonts/
@@ -574,7 +610,7 @@ install_ms_fonts(){
     fc-cache-32 --force
 
     echo -e "${BRIGHT_CYAN}Deleting Windows image and tmp directories...${NO_COLOR}"
-    rm -r "$ISO_LOCATION" "/root/install.wim /root/fonts"
+    rm -r "$ISO_LOCATION" "/root/install.wim" "/root/fonts"
 
     [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
@@ -585,6 +621,10 @@ install_lsd(){
     pacman --noconfirm -S lsd ttf-hack-nerd
 }
 
+# https://wiki.archlinux.org/title/snapper
+# https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
+# https://wiki.archlinux.org/title/snapper#Configuration_of_snapper_and_mount_point
+# https://wiki.archlinux.org/title/snapper#Wrapping_pacman_transactions_in_snapshots
 btrfs_snapshots(){
     colored_msg "Installing snapper and snap-pac..." "${BRIGHT_CYAN}" "#"
 
@@ -646,6 +686,8 @@ install_yay(){
     redo_grub
 }
 
+# https://wiki.archlinux.org/title/dm-crypt/Device_encryption#Keyfiles
+# https://wiki.archlinux.org/title/Dm-crypt/System_configuration#rd.luks.key
 enable_crypt_keyfile(){
     colored_msg "Enabling keyfile at boot..." "${BRIGHT_CYAN}" "#"
 
@@ -804,6 +846,7 @@ Select one of the following options:
 }
 
 # CHECK FOR ROOTLESS WAYLAND!!!
+# https://wiki.archlinux.org/title/SDDM#Rootless
 rootless_kde(){
     colored_msg "Enabling rootless SDDM..." "${BRIGHT_CYAN}" "#"
 
@@ -824,6 +867,7 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
+# https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
 enable_paccache(){
     colored_msg "Enabling paccache..." "${BRIGHT_CYAN}" "#"
 
@@ -917,6 +961,47 @@ In any case, you can use the *.reg file located in .scripts/win64 to install it 
     timedatectl set-ntp true
 }
 
+
+# https://wiki.archlinux.org/title/fan_speed_control
+# https://gitlab.com/coolercontrol/coolercontrol/-/wikis/config-files
+enable_fan_control(){
+    local -r USER=$(get_sudo_user)
+    colored_msg "Installing Fan Control software..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}Installing CoolerControl...${NO_COLOR}"
+    sudo -S -i -u "$USER" yay -S coolercontrol
+
+    echo -e "${BRIGHT_CYAN}Enabling coolercontrol service...${NO_COLOR}"
+    systemctl enable --now coolercontrold
+
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo "
+Options:
+1) Torre-AMD (R9 5900X - NVIDIA RTXC 3080 Ti)
+"
+
+        echo -ne "${YELLOW}Please select an option: ${NO_COLOR}"
+        read -r selection
+
+        case $selection in
+            "1")
+                echo -e "${BRIGHT_CYAN}Copying profile...${NO_COLOR}"
+                cp CoolerControl/Torre-AMD/* /etc/coolercontrol
+                systemctl restart coolercontrold
+                is_done="$TRUE"
+                ;;
+            
+            *)
+                echo -e "${RED}Wrong option${NO_COLOR}"
+                is_done="$FALSE"
+                ;;
+        esac
+    done
+}
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -929,6 +1014,7 @@ enable_envycontrol(){
     envycontrol -s integrated
 }
 
+# https://wiki.archlinux.org/title/MSI_GE75_Raider_8SX#Driver_options
 laptop_extra_config(){
     # aqui va la configuracion de los altavoces y eso
     echo -e "${BRIGHT_CYAN}Enabling modprobe config...${NO_COLOR}"
@@ -937,7 +1023,7 @@ laptop_extra_config(){
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
 
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
@@ -953,7 +1039,7 @@ main(){
             ask "Do you want to enable periodic pacman cache cleaning?" && enable_paccache
             ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
             ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-            ask "Do you want to enable scrub?" && btrfs_scrub
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to enable scrub?" && btrfs_scrub
             ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
             ask "Do you want to install an AUR helper?" && install_yay
             ask "Do you want to install bluetooth service?" && install_bluetooth
@@ -986,8 +1072,13 @@ main(){
             # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
             ask "Do you want to install KVM?" && install_kvm
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"    
-                    
-            ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
+
+            if [ "$has_encryption" -eq  "$TRUE" ];
+            then        
+                ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
+            else
+                ask_reboot
+            fi
             ;;
 
         3)
@@ -1004,7 +1095,7 @@ main(){
             ask "Do you want to install lsd and hack nerd font?" && install_lsd
             ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
 
-            ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
             ask_reboot
             ;;
@@ -1012,7 +1103,8 @@ main(){
         5)
             ask "Do you want to install optional packages?" && install_optional_pkgs
             ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
-
+            [ "$is_laptop" -eq "$FALSE" ] && ask "Do you want to enable fan control?" && enable_fan_control
+            
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
             then 
                 ask "Do you want to enable laptop specific features?" && laptop_extra_config
@@ -1027,12 +1119,23 @@ main(){
     esac
 
 
-    echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
+    # echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
     echo "CHECK FREEFILESYNC PACKAGE"
+
+    if [ "$is_laptop" -eq "$FALSE" ];
+    then
+        echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
+        echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
+If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
+1) Open nvidia-settings.
+2) Click on \"Enable GPU Fan Settings\".
+3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
+4) If it does not go to 0% repeat these steps."
+    fi
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service

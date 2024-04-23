@@ -1,0 +1,143 @@
+# This is the CoolerControl configuration file.
+# Comments and most formatting is preserved.
+# Most of this file you can edit by hand, but it is recommended to stop the daemon when doing so.
+# -------------------------------
+
+
+# Unique ID Device List
+# -------------------------------
+# This is a simple UID and device name key-value pair, that is automatically generated at startup
+#  to help humans distinguish which UID belongs to which device in this config file.
+#  Only the device name is given here, complete Device information can be requested from the API.
+#  UIDs are generated sha256 hashes based on specific criteria to help determine device uniqueness.
+# ANY CHANGES WILL BE OVERWRITTEN.
+# Example:
+# 21091c4fb341ceab6236e8c9e905ccc263a4ac08134b036ed415925ba4c1645d = "Nvidia GPU"
+[devices]
+eec15d99be14c76d6dbbd04be2029a9cbe444806712974f8bf1238d19274f326 = "AMD Ryzen 9 5900X 12-Core Processor"
+8b76273cb2328ccea47d925147ddb6ab7acacd5ebee2f4fd1e814716d9470129 = "nct6797"
+45a98b0a429b2dbdc18c8483854cce5364a0e2d8a1a93a49441d0141006d9530 = "nvme1"
+a995c6073cb5823f77b3b9c23fbd5aa99d575e67edf881db003b81be7c70bf71 = "nvme0"
+568337579da7d84e9da34a40400764635a1b25773ca66f11a4dcb7b2d03050fc = "NVIDIA GeForce RTX 3080 Ti"
+44ed162552b18616158b843873b335d5cdb71ba2c7c78be02ab63c7877b80741 = "Composite"
+19e098e312e1b1b39163a343ea22b6ea17f18ec1a803ffe0ce44f5bacd6076ee = "Custom Sensors"
+f42333b13a2853dfb8e516c576470622e74a4659bfffe7ca229f68733beae979 = "iwlwifi_1"
+
+
+# Legacy690 Option for devices
+# -------------------------------
+# There are 2 Asetek 690LC liquid coolers that have the same device ID.
+#  To tell them apart we need user input to know which cooler we're actually dealing with.
+#  This is an assignment of liquidctl AseTek690LC device UIDs to true/false:
+#   true = Legacy690 Cooler aka NZXT Kraken X40, X60, X31, X41, X51 and X61
+#   false = Modern690 Cooler aka EVGA CLC 120 (CLC12), 240, 280 and 360
+# Example:
+# 21091c4fb341ceab6236e8c9e905ccc263a4ac08134b036ed415925ba4c1645d = true
+[legacy690]
+
+
+# Device Settings
+# -------------------------------
+# This is where CoolerControl will save device settings for the cooresponding device.
+# Settings can be set here also specifically by hand. (restart required for applying)
+# These settings are applied on startup and each is overwritten once a new setting
+# has been applied.
+# Example:
+# [device-settings.4b9cd1bc5fb2921253e6b7dd5b1b011086ea529d915a86b3560c236084452807]
+# pump = { speed_fixed = 30 }
+# logo = { lighting = { mode = "fixed", colors = [[0, 255, 255]] } }
+# ring = { lighting = { mode = "spectrum-wave", backward = true, colors = [] } }
+[device-settings]
+
+[device-settings.8b76273cb2328ccea47d925147ddb6ab7acacd5ebee2f4fd1e814716d9470129]
+fan2 = { profile_uid = "0" }
+fan3 = { profile_uid = "dbbbb973-d0eb-421e-b15a-124156a5c586" }
+fan4 = { profile_uid = "dbbbb973-d0eb-421e-b15a-124156a5c586" }
+fan5 = { profile_uid = "0" }
+fan7 = { profile_uid = "0" }
+
+[device-settings.568337579da7d84e9da34a40400764635a1b25773ca66f11a4dcb7b2d03050fc]
+fan1 = { profile_uid = "fd8dc96c-8c51-45a4-bcb5-bbe1e072fdd6" }
+
+
+# A list of profiles to be used with each device's settings
+# -------------------------------
+[[profiles]]
+uid = "0"
+name = "Default Profile"
+p_type = "Default"
+function = "0"
+
+[[profiles]]
+uid = "0840dd7f-04cb-4c72-9303-4d78f0e92a55"
+name = "My Profile"
+p_type = "Default"
+speed_profile = []
+function_uid = "0"
+
+[[profiles]]
+uid = "dbbbb973-d0eb-421e-b15a-124156a5c586"
+name = "Case fans"
+p_type = "Graph"
+speed_profile = [[20.0, 30], [55.0, 30], [65.0, 100], [100.0, 100]]
+temp_source = { temp_name = "GPU Temp", device_uid = "568337579da7d84e9da34a40400764635a1b25773ca66f11a4dcb7b2d03050fc" }
+function_uid = "0"
+
+[[profiles]]
+uid = "fd8dc96c-8c51-45a4-bcb5-bbe1e072fdd6"
+name = "GPU Fans"
+p_type = "Graph"
+speed_profile = [[20.0, 0], [60.0, 0], [70.0, 100], [100.0, 100]]
+temp_source = { temp_name = "GPU Temp", device_uid = "568337579da7d84e9da34a40400764635a1b25773ca66f11a4dcb7b2d03050fc" }
+function_uid = "0"
+
+# A list of functions to be applied to the various profiles
+# -------------------------------
+[[functions]]
+uid = "0"
+name = "Default Function"
+f_type = "Identity"
+
+
+# Cooler Control Settings
+# -------------------------------
+# This is where CoolerControl specifc general and specifc device settings are set. These device
+# settings differ from the above Device Settings, in that they are applied to CoolerControl,
+# and not on the devices themselves. For ex. settings such as disabling/enabling a particular device.
+[settings]
+
+# whether to apply the saved device settings on daemon startup
+apply_on_boot = true
+
+# Will skip initialization calls for liquidctl devices. ONLY USE if you are doing initialiation manually.
+no_init = false
+
+# Handle dynamic temp sources like cpu and gpu with a moving average rather than immediately up and down.
+handle_dynamic_temps = false
+
+# Startup Delay (seconds) is an integer value between 0 and 10
+startup_delay = 2
+
+# Smoothing level (averaging) for temp and load values of CPU and GPU devices. (0-5)
+# This only affects the returned values from the /status endpoint, not internal values
+smoothing_level = 0
+
+# For ThinkPads, wheather to use the 'full-speed' option when settings the fan to 100%
+# This option drives the fan as fast as it can go, which might exceed hardware limits,
+# so use this level with caution.
+thinkpad_full_speed = false
+
+# CoolerControl Device settings Example:
+# [settings.4b9cd1bc5fb2921253e6b7dd5b1b011086ea529d915a86b3560c236084452807]
+# disabled = true
+
+# API Address and Port:
+# The daemon by default uses port 11987 and the standard loopback IPv4 and IPv6 addresses.
+# You can set an IPv4, IPv6 or both addresses to listen on. An empty string will disable the address.
+# It is highly recommended to use the default settings unless you have a specific reason to change them
+# and understand the implications. The API is not secure and should not be exposed to a public network.
+# For more information see the project wiki.
+# Example:
+# port = 11987
+# ipv4_address = "127.0.0.1"
+# ipv6_address = "::1"
