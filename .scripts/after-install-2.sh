@@ -1002,6 +1002,23 @@ Options:
     done
 }
 
+# https://wiki.archlinux.org/title/improving_performance#Improving_system_responsiveness_under_low-memory_conditions
+# Configuration extracted from Fedora and Ubuntu
+# See config: systemd-analyze cat-config systemd/oomd.conf
+enable_oomd(){
+    colored_msg "Enabling systemd-oomd.service..." "${BRIGHT_CYAN}" "#"
+
+    if ask "Do you want to add the recommended configuration?";
+    then
+        echo -e "${BRIGHT_CYAN}Adding the recommended configuration to /etc/systemd/oomd.conf...${NO_COLOR}"
+        echo "DefaultMemoryPressureDurationSec=20s" >> /etc/systemd/oomd.conf
+    fi
+
+    echo -e "${BRIGHT_CYAN}Enabling and starting the service...${NO_COLOR}"
+    systemctl enable --now systemd-oomd.service
+}
+
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -1063,6 +1080,7 @@ main(){
             ;;
 
         2)
+            ask "Do you want to enable OOM Killer (systemd-oomd)?" && enable_oomd
             ask "Do you want to install the printer service?" && install_printer
             ask "Do you want to install a firewall?" && install_firewall
 
