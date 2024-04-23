@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("neofetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -1072,8 +1072,13 @@ main(){
             # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
             ask "Do you want to install KVM?" && install_kvm
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"    
-                    
-            ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
+
+            if [ "$has_encryption" -eq  "$TRUE" ];
+            then        
+                ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
+            else
+                ask_reboot
+            fi
             ;;
 
         3)
@@ -1120,6 +1125,17 @@ main(){
     echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
     echo "CHECK FREEFILESYNC PACKAGE"
+
+    if [ "$is_laptop" -eq "$FALSE" ];
+    then
+        echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
+        echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
+If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
+1) Open nvidia-settings.
+2) Click on \"Enable GPU Fan Settings\".
+3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
+4) If it does not go to 0% repeat these steps."
+    fi
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
