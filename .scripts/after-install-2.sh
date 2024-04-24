@@ -1152,7 +1152,9 @@ If they don't go to 0% do the following steps (repeat more than once if it doesn
 1) Open nvidia-settings.
 2) Click on \"Enable GPU Fan Settings\".
 3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
-4) If it does not go to 0% repeat these steps."
+4) If it does not go to 0% repeat these steps.
+
+If after a while these steps do not work, then apply the default profile to the GPU and reapply the custom profile."
     fi
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR

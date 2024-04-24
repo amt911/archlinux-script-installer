@@ -79,7 +79,7 @@ function_uid = "0"
 uid = "dbbbb973-d0eb-421e-b15a-124156a5c586"
 name = "Case fans"
 p_type = "Graph"
-speed_profile = [[20.0, 30], [55.0, 30], [65.0, 100], [100.0, 100]]
+speed_profile = [[20.0, 30], [60.0, 30], [65.0, 100], [100.0, 100]]
 temp_source = { temp_name = "GPU Temp", device_uid = "568337579da7d84e9da34a40400764635a1b25773ca66f11a4dcb7b2d03050fc" }
 function_uid = "0"
 
