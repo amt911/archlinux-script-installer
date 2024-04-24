@@ -381,13 +381,15 @@ configure_swap(){
 
 # https://wiki.archlinux.org/title/Mkinitcpio#Common_hooks
 # https://wiki.archlinux.org/title/dm-crypt/Encrypting_an_entire_system
+# If a module the is needed is not loaded, you can load it using
 configure_mkinitcipio(){
     sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
 
     # sed -e '/#1/a\' -e "new line" -i example
 
     # Insert new hook after commented one
-    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
+    # I insert keyboard before autodetect because Arch Wiki says that it is mandatory for non-standard configurations (I have a Keychron K2 that will not boot without it)
+    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
 
     arch-chroot /mnt mkinitcpio -P
 }
