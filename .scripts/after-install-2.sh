@@ -1147,14 +1147,16 @@ main(){
     if [ "$is_laptop" -eq "$FALSE" ];
     then
         echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
-        echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
-If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
-1) Open nvidia-settings.
-2) Click on \"Enable GPU Fan Settings\".
-3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
-4) If it does not go to 0% repeat these steps.
+#         echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
+# If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
+# 1) Open nvidia-settings.
+# 2) Click on \"Enable GPU Fan Settings\".
+# 3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
+# 4) If it does not go to 0% repeat these steps.
 
-If after a while these steps do not work, then apply the default profile to the GPU and reapply the custom profile."
+# If after a while these steps do not work, then apply the default profile to the GPU and reapply the custom profile."
+        echo -e "Check inside CoolerControl if the ${YELLOW}GPU FAN PROFILE${NO_COLOR} is set to ${YELLOW}DEFAULT PROFILE${NO_COLOR}."
+        echo -e "If you want to play a game, change the ${YELLOW}GPU FAN PROFILE${NO_COLOR} to ${YELLOW}GPU Fan${NO_COLOR}."
     fi
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR
