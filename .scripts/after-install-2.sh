@@ -1143,7 +1143,7 @@ main(){
     echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
     # echo "CHECK FREEFILESYNC PACKAGE"
-    echo "Disable automatic sleeping and screen shutoff on Plasma"
+    echo "Disable automatic sleeping, screen shutoff and screen locking on Plasma"
 
     if [ "$is_laptop" -eq "$FALSE" ];
     then
