@@ -366,16 +366,30 @@ net_config(){
 # Only encrypted swap, for now
 # https://wiki.archlinux.org/title/dm-crypt/Swap_encryption#Without_suspend-to-disk_support
 configure_swap(){
-    colored_msg "Encrypted swap configuration..." "${BRIGHT_CYAN}" "#"
+    colored_msg "Swap configuration..." "${BRIGHT_CYAN}" "#"
     # https://wiki.archlinux.org/title/Dm-crypt/Swap_encryption
+    
+    local final_swap_part="$swap_part"
 
-    # Create a consistent UUID for the partition
-    mkfs.ext2 -L cryptswap "$swap_part" 1M
+    if [ "$has_encryption" -eq "$TRUE" ];
+    then
+        echo -e "${BRIGHT_CYAN}Creating encrypted swap partition...${NO_COLOR}"
 
-    # Insert into crypttab the new entry
-    echo "swap LABEL=cryptswap /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size512" >> /mnt/etc/crypttab
+        # Create a consistent UUID for the partition
+        mkfs.ext2 -L cryptswap "$swap_part" 1M
 
-    echo "/dev/mapper/swap none swap defaults 0 0" >> /mnt/etc/fstab
+        # Insert into crypttab the new entry
+        echo "swap LABEL=cryptswap /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size512" >> /mnt/etc/crypttab
+        
+        final_swap_part="/dev/mapper/swap"
+    else
+        echo -e "${BRIGHT_CYAN}Creating swap partition...${NO_COLOR}"
+
+        mkswap "$swap_part"
+        swapon "$swap_part"
+    fi
+
+    echo "$final_swap_part none swap defaults 0 0" >> /mnt/etc/fstab
 }
 
 
@@ -383,15 +397,20 @@ configure_swap(){
 # https://wiki.archlinux.org/title/dm-crypt/Encrypting_an_entire_system
 # If a module the is needed is not loaded, you can load it using
 configure_mkinitcipio(){
-    sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
+    # Temporary patch: Only modify mkinitcpio.conf if the root partition is encrypted
+    if [ "$has_encryption" -eq "$TRUE" ];
+    then
+        sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
 
-    # sed -e '/#1/a\' -e "new line" -i example
+        # Insert new hook after commented one
+        # I insert keyboard before autodetect because Arch Wiki says that it is mandatory for non-standard configurations (I have a Keychron K2 that will not boot without it)
+        sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
 
-    # Insert new hook after commented one
-    # I insert keyboard before autodetect because Arch Wiki says that it is mandatory for non-standard configurations (I have a Keychron K2 that will not boot without it)
-    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
-
-    arch-chroot /mnt mkinitcpio -P
+        arch-chroot /mnt mkinitcpio -P
+    
+    else
+        echo -e "${BRIGHT_CYAN}There is no need to modify mkinitcpio.conf. Continuing...${NO_COLOR}"
+    fi
 }
 
 # $1: username. Empty for root
@@ -436,10 +455,13 @@ install_bootloader(){
     # Configure GRUB
     sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
-    local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+    # Add the following lines ONLY if root partition is encrypted
+    if [ "$has_encryption" -eq "$TRUE" ];
+    then
+        local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
-
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+    fi
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg

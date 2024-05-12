@@ -1,0 +1,9 @@
+Cosas que no funcionan correctamente en el script de instalacion:
+
+Configuracion sin encriptacion:
+- Se añaden los hooks de sd-encrypt (systemd) de manera innecesaria.
+DONE - Supone que la particion root esta encriptada de todas formas (GRUB).
+DONE - La particion swap la encripta de manera innecesaria.
+
+
+after install
