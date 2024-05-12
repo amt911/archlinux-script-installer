@@ -1020,12 +1020,33 @@ enable_oomd(){
 
 
 # https://wiki.archlinux.org/title/WireGuard
+# https://wiki.archlinux.org/title/WireGuard#NetworkManager
 install_wireguard(){
     colored_msg "Installing wireguard and GUI..." "${BRIGHT_CYAN}" "#"
 
     local -r USER=$(get_sudo_user)
-    
-    sudo -S -i -u "$USER" yay -S wireguard-tools wireguird    
+
+    echo -e "${BRIGHT_CYAN}Installing wireguard-tools...${NO_COLOR}"
+    sudo -S -i -u "$USER" yay -S wireguard-tools
+
+    local is_done="$FALSE"
+    local conf_filename
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo -n "Please provide a wg-quick configuration file (use full path name): "
+        read -r conf_file
+
+        if [ -f "$conf_file" ];
+        then
+            conf_filename=$(echo "$conf_file" | rev | cut -d/ -f1 | rev )
+
+            ask "You have selected $conf_filename. Is that correct?" && is_done="$TRUE"
+        else
+            echo -e "${RED}The file does not exist${NO_COLOR}"
+        fi
+    done
+
+    nmcli connection import type wireguard file "$conf_file"
 }
 
 
