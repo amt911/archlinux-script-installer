@@ -4,7 +4,7 @@
 # set static ip to archiso: ip a add 192.168.56.101/24 broadcast + dev enp0s8
 # testing commands for host: scp installer.sh root@192.168.56.101:/root
 
-source common_functions.sh
+source common-functions.sh
 
 # TODO:
 # Poder detectar entre CSM y UEFI
@@ -14,19 +14,23 @@ source common_functions.sh
 # Arreglar la logica del grep en generate_locales, que se le puede meter \ y puede ser que se puede ejecutar codigo
 
 # https://wiki.archlinux.org/title/Snapper#Preventing_slowdowns
+# https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
+# /var/lib/docker
+# /var/lib/machines
+# /var/lib/postgres
 readonly BTRFS_SUBVOL=("@" "@home" "@var_cache" "@var_abs" "@var_log" "@srv" "@var_tmp")
 readonly BTRFS_SUBVOL_MNT=("/mnt" "/mnt/home" "/mnt/var/cache" "/mnt/var/abs" "/mnt/var/log" "/mnt/srv" "/mnt/var/tmp")
 
 # Packages
-readonly BASE_PKGS=("base" "linux" "linux-firmware" "btrfs-progs" "nano" "vi" "zsh")
-
+BASE_PKGS=("base" "linux" "linux-firmware" "nano" "vi" "zsh")
+readonly BASE_PKGS_BTRFS=("btrfs-progs")
 
 # Paquetes que requieren configuración adidional: libreoffice, snapper, ufw, firefox, snapper, snap-pac, reflector, sane
 # Paquetes especiales de la torre que requieren configuración adidional: cpupower
 # Paquetes desactualizados: veracrypt, btop, 
 
 loadkeys_tty(){
-    echo -n "Type desired locale (leave empty for default): "
+    echo -ne "${YELLOW}Type desired locale (leave empty for default): ${NO_COLOR}"
     read -r tty_layout
 
     if [ -z "$tty_layout" ];
@@ -34,7 +38,7 @@ loadkeys_tty(){
         tty_layout="us"
     fi
 
-    echo "Loading $tty_layout..."
+    echo -e "${BRIGHT_CYAN}Loading $tty_layout...${NO_COLOR}"
 
     loadkeys "$tty_layout"
 }
@@ -42,10 +46,6 @@ loadkeys_tty(){
 is_efi(){
     local res="$FALSE"
 
-    # cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null
-
-
-    # if [ "$?" -eq 0 ];
     if cat "/sys/firmware/efi/fw_platform_size" 2> /dev/null;
     then
         res="$TRUE"
@@ -55,13 +55,15 @@ is_efi(){
 }
 
 check_current_time(){
+    colored_msg "Checking time..." "${BRIGHT_CYAN}" "#"
+
     timedatectl
 
     if ! ask "Is it accurate?";
     then
         local date
         
-        echo -n "Input the correct date (format: yyyy-mm-dd hh:mm:ss): "
+        echo -ne "${YELLOW}Input the correct date (format: yyyy-mm-dd hh:mm:ss): ${NO_COLOR}"
         read -r date
 
         timedatectl set-time "$date"
@@ -69,85 +71,120 @@ check_current_time(){
 }
 
 partition_drive(){
+    colored_msg "Select system partitions..." "${BRIGHT_CYAN}" "#"
+
     local part
     local selected="$FALSE"
     local correct_layout="$FALSE"
 
-    echo "These are your system partitions:" 
-    lsblk
-
     while [ "$correct_layout" -eq "$FALSE" ]
     do
+        echo -e "${BRGIHT_CYAN}These are your system partitions:${NO_COLOR}"
+        lsblk
+
         while [ "$selected" -eq "$FALSE" ]
         do
-            echo -n "Type the drive/partitions where Arch Linux will be installed: "
+            echo -ne "${YELLOW}Type the drive/partitions where Arch Linux will be installed: ${NO_COLOR}"
             read -r part
 
             ask "You have selected $part. Is that correct?";
             selected="$?"
         done
 
-        echo "Opening cfdisk..."
+        echo -e "${BRIGHT_CYAN}Opening cfdisk...${NO_COLOR}"
         cfdisk "$part"
 
         sleep 2
-        echo "The partitions are as follows:"
+        echo -e "${BRIGHT_CYAN}The partitions are as follow:${NO_COLOR}"
         lsblk
 
-        ask "Does it have a swap partition?"
-        has_swap="$?"
-        add_global_var_to_file "has_swap" "$has_swap" "$VAR_FILE_LOC"
+        ask_global_var "has_swap" "$TRUE" "$TRUE"
 
         
         if [ "$has_swap" -eq "$TRUE" ];
         then
-            echo -n "Type swap partition: "
-            read -r swap_part
-            add_global_var_to_file "swap_part" "$swap_part" "$VAR_FILE_LOC"
+            ask_global_var "swap_part" "$TRUE" "$TRUE"
         fi
 
         
-        echo -n "Type root partition: "
-        read -r root_part
-        add_global_var_to_file "root_part" "$root_part" "$VAR_FILE_LOC"
+        ask_global_var "root_part" "$TRUE" "$TRUE"
+        ask_global_var "boot_part" "$TRUE" "$TRUE"
 
-        echo -n "Type boot partition: "
-        read -r boot_part
-        add_global_var_to_file "boot_part" "$boot_part" "$VAR_FILE_LOC"
-
-        echo "You have selected the following partitions:"
-        echo "boot partition: $boot_part"
-        [ "$has_swap" -eq "$TRUE" ] && echo "swap partition: $swap_part"
-        echo "root partition: $root_part"
+        echo -e "${BRIGHT_CYAN}You have selected the following partitions:${NO_COLOR}"
+        echo -e "${BRIGHT_CYAN}boot partition:${NO_COLOR} $boot_part"
+        [ "$has_swap" -eq "$TRUE" ] && echo -e "${BRIGHT_CYAN}swap partition:${NO_COLOR} $swap_part"
+        echo -e "${BRIGHT_CYAN}root partition:${NO_COLOR} $root_part"
 
         ask "Is that correct?"
         correct_layout="$?"
+        selected="$FALSE"
     done
 }
 
-
+# https://wiki.archlinux.org/title/installation_guide#Format_the_partitions
 mkfs_partitions(){
+    colored_msg "Creating partitions..." "${BRIGHT_CYAN}" "#"
+
     local i
-    ask "Do you want to encrypt root partition?"
-    has_encryption="$?"
-    add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
+    # ask "Do you want to encrypt root partition?"
+    # has_encryption="$?"
+    # add_global_var_to_file "has_encryption" "$has_encryption" "$VAR_FILE_LOC"
+    ask_global_var "has_encryption" "$TRUE"
+
+    # DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
+    # add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
+    ask_global_var "DM_NAME" "$TRUE"
+
+    local drive="/dev/$DM_NAME"
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        DM_NAME="$(echo "$root_part" | cut -d "/" -f3)"
-        add_global_var_to_file "DM_NAME" "$DM_NAME" "$VAR_FILE_LOC"
-
         local crypt_done="$FALSE"
         while [ "$crypt_done" -eq "$FALSE" ]
         do
             cryptsetup luksFormat "$root_part" && cryptsetup open "$root_part" "$DM_NAME" && crypt_done="$TRUE"
         done
+
+        drive="/dev/mapper/$DM_NAME"
     fi
 
-    mkfs.btrfs -L root "/dev/mapper/$DM_NAME"
-    mkfs.fat -F32 "$boot_part"
+#     Ask for the preferred filesystem
+    ask_global_var "root_fs" "$TRUE"
 
-    mount "/dev/mapper/$DM_NAME" "/mnt" -o compress-force=zstd
+    case $root_fs in
+        "btrfs")
+            create_btrfs "$drive"
+            ;;
+
+        "ext4")
+            create_ext4
+            exit
+            ;;
+
+        *)
+            echo "error"
+            exit
+            ;;
+    esac
+
+    mkfs.fat -F32 "$boot_part"
+    mount --mkdir "$boot_part" /mnt/boot
+}
+
+# https://wiki.archlinux.org/title/ext4
+create_ext4(){
+    true
+}
+
+# https://wiki.archlinux.org/title/btrfs
+# $1: Drive location
+create_btrfs(){
+    local -r DRIVE="$1"
+
+    local i
+    mkfs.btrfs -L root "$DRIVE"
+
+    mount "$DRIVE" "/mnt" -o compress-force=zstd
 
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
     for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
@@ -161,15 +198,20 @@ mkfs_partitions(){
     # for ((i=1; i<=${#BTRFS_SUBVOL_MNT[@]}; i++))    # zsh version
     for ((i=0; i<${#BTRFS_SUBVOL_MNT[@]}; i++))
     do
-        mount --mkdir "/dev/mapper/$DM_NAME" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
-    done   
-    unset i 
-
-    mount --mkdir "$boot_part" /mnt/boot
+        mount --mkdir "$DRIVE" "${BTRFS_SUBVOL_MNT[i]}" -o compress-force=zstd,subvol="${BTRFS_SUBVOL[i]}"
+    done
+    unset i
 }
 
+# https://wiki.archlinux.org/title/installation_guide#Install_essential_packages
 install_packages(){
-    echo "The following packages are going to be installed: " "${BASE_PKGS[@]}"
+    colored_msg "Base packages installation..." "${BRIGHT_CYAN}" "#"
+
+    install_microcode
+
+    [ "$root_fs" = "btrfs" ] && BASE_PKGS=("${BASE_PKGS[@]}" "${BASE_PKGS_BTRFS[@]}")
+
+    echo -e "${BRIGHT_CYAN}The following packages are going to be installed: ${NO_COLOR}" "${BASE_PKGS[@]}"
 
     if ask "Do you want to start installation?";
     then
@@ -185,15 +227,16 @@ configure_fstab(){
 # $1: Region
 # $2: City
 configure_timezone(){
+    colored_msg "Timezone configuration..." "${BRIGHT_CYAN}" "#"
     local region
     local city
 
     if [ "$#" -lt "2" ];
     then
-        echo -n "Timezone region: "
+        echo -ne "${YELLOW}Timezone region: ${NO_COLOR}"
         read -r region
 
-        echo -n "City: "
+        echo -ne "${YELLOW}City: ${NO_COLOR}"
         read -r city
     else
         region="$1"
@@ -207,7 +250,9 @@ configure_timezone(){
 
 # $1: locales
 generate_locales(){
-    echo "You are about to be shown all available locales, press q to exit"
+    colored_msg "Locale generation..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}You are about to be shown all available locales, press q to exit${NO_COLOR}"
     sleep 1
 
     less /mnt/etc/locale.gen
@@ -225,7 +270,7 @@ generate_locales(){
         # Loop to select all locales
         while [ "$is_done" -eq "$FALSE" ]
         do
-            echo -n "Please type in a locale (s to show locales and empty to continue): "
+            echo -ne "${YELLOW}Please type in a locale (s to show locales and empty to continue): ${NO_COLOR}"
             read -r locale
 
             case $locale in
@@ -240,10 +285,10 @@ generate_locales(){
                 *)
                 if grep -E "#${locale}  $" "/mnt/etc/locale.gen" > /dev/null;
                 then
-                    echo "Adding $locale to the list"
+                    echo -e "${BRIGHT_CYAN}Adding $locale to the list${NO_COLOR}"
                     selected_locales=("${selected_locales[@]}" "$locale")
                 else
-                    echo "$locale not found. Not added to the list."
+                    echo -e "${RED}$locale not found. Not added to the list.${NO_COLOR}"
                 fi
                 ;;
             esac
@@ -251,7 +296,7 @@ generate_locales(){
 
 
         # Lists all selected locales
-        echo "These are the selected locales:"
+        echo -e "${BRIGHT_CYAN}These are the selected locales:${NO_COLOR}"
 
         counter=1
         for i in "${selected_locales[@]}"
@@ -274,37 +319,40 @@ generate_locales(){
     # sed -i "s/#tres cuatro cinco/nano 33/g" example
     for i in "${selected_locales[@]}"
     do
-        echo "Adding ${i}..."
+        echo -e "${BRIGHT_CYAN}Adding ${i}...${NO_COLOR}"
         sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
     done
     unset i
 }
 
 write_keymap(){
+    colored_msg "Writing keymap to vconsole..." "${BRIGHT_CYAN}"
     echo "KEYMAP=$tty_layout" > /mnt/etc/vconsole.conf
 }
 
+# https://wiki.archlinux.org/title/Network_configuration#Network_managers
+# https://wiki.archlinux.org/title/Installation_guide#Install_essential_packages
+# https://wiki.archlinux.org/title/Installation_guide#Network_configuration
+# https://wiki.archlinux.org/title/Network_configuration#localhost_is_resolved_over_the_network
 net_config(){
+    colored_msg "Network configuration..." "${BRIGHT_CYAN}" "#"
+
     local hostname_ok="$FALSE"
 
     while [ "$hostname_ok" -eq "$FALSE" ]
     do
         # Create the hostname file
-        echo -n "Type hostname: "
-        read -r machine_name
-        add_global_var_to_file "machine_name" "$machine_name" "$VAR_FILE_LOC"
+        ask_global_var "machine_name" "$TRUE"
 
         if [ -z "$machine_name" ];
         then
-            echo "Invalid hostname"
+            echo -e "${RED}Invalid hostname${NO_COLOR}"
         else
             hostname_ok="$TRUE"
         fi
     done
 
     echo "$machine_name" > /mnt/etc/hostname
-
-    # TODO: Modify files with IPv4 and IPv6, install NetworkManager and enable its service.
 
     # On my usual config, I use IPv6 as localhost6
     echo -e "127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ${machine_name}" >> /mnt/etc/hosts
@@ -316,7 +364,9 @@ net_config(){
 
 
 # Only encrypted swap, for now
+# https://wiki.archlinux.org/title/dm-crypt/Swap_encryption#Without_suspend-to-disk_support
 configure_swap(){
+    colored_msg "Encrypted swap configuration..." "${BRIGHT_CYAN}" "#"
     # https://wiki.archlinux.org/title/Dm-crypt/Swap_encryption
 
     # Create a consistent UUID for the partition
@@ -328,19 +378,26 @@ configure_swap(){
     echo "/dev/mapper/swap none swap defaults 0 0" >> /mnt/etc/fstab
 }
 
+
+# https://wiki.archlinux.org/title/Mkinitcpio#Common_hooks
+# https://wiki.archlinux.org/title/dm-crypt/Encrypting_an_entire_system
+# If a module the is needed is not loaded, you can load it using
 configure_mkinitcipio(){
     sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
 
     # sed -e '/#1/a\' -e "new line" -i example
 
     # Insert new hook after commented one
-    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs autodetect modconf kms block keyboard sd-vconsole sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
+    # I insert keyboard before autodetect because Arch Wiki says that it is mandatory for non-standard configurations (I have a Keychron K2 that will not boot without it)
+    sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
 
     arch-chroot /mnt mkinitcpio -P
 }
 
 # $1: username. Empty for root
 set_password(){
+    colored_msg "Root password configuration..." "${BRIGHT_CYAN}" "#"
+
     if [ "$#" -eq "0" ];
     then
         arch-chroot /mnt passwd
@@ -349,24 +406,34 @@ set_password(){
     fi
 }
 
+# https://wiki.archlinux.org/title/Microcode
+# https://wiki.archlinux.org/title/installation_guide#Install_essential_packages
 install_microcode(){
+#     colored_msg "CPU microcode..." "${BRIGHT_CYAN}" "#"
+
     local ucode="amd-ucode"
 
-    ask "Is it an Intel CPU?"
-    is_intel="$?"
-    add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
+    # ask "Is it an Intel CPU?"
+    # is_intel="$?"
+    # add_global_var_to_file "is_intel" "$is_intel" "$VAR_FILE_LOC"
+    ask_global_var "is_intel" "$TRUE"
 
     [ "$is_intel" -eq "$TRUE" ] && ucode="intel-ucode"
     
-    arch-chroot /mnt pacman --noconfirm -S "$ucode"
+#     arch-chroot /mnt pacman --noconfirm -S "$ucode"
+
+    BASE_PKGS=("${BASE_PKGS[@]}" "$ucode")
 }
 
+# https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader
+# https://wiki.archlinux.org/title/GRUB
 install_bootloader(){
+    colored_msg "Bootloader installation..." "${BRIGHT_CYAN}" "#"
+
     # Install bootloader package
     arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
 
     # Configure GRUB
-    # /etc/default/grub
     sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
     local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
@@ -375,9 +442,6 @@ install_bootloader(){
 
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-
-    install_microcode
-
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
@@ -392,6 +456,8 @@ install_ssh(){
 
 # Main function
 main(){
+    [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
     loadkeys_tty
 
     if is_efi;
@@ -429,9 +495,9 @@ main(){
     
     # install_ssh
 
-    echo "Basic installation completed!. Now boot to root user and continue with the installation"
+    echo -e "${GREEN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
 
-    cp ./*.sh /mnt/root/.scripts
+    cp -r /root/.scripts /mnt/root/.scripts
 }
 
 main "$@"

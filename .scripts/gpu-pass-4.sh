@@ -3,7 +3,7 @@
 # TODO:
 # Update repository periodically
 
-source "common_functions.sh"
+source "common-functions.sh"
 
 readonly REPO_LOC="/root/.vfio-tools"
 
@@ -94,16 +94,26 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
     get_all_sudo_users
 
+
+    # First, it checks if qemu hooks are installed
+    if [ ! -d "/etc/libvirt/hooks" ];
+    then
+        clone_repo
+        create_directories    
+        echo "You can now call this script again with the VM name to create the config."
+
+        return 0
+    fi
+
+    # After that, you can pass arguments to create a GPU Passthrough config
     if [ "$#" -gt "0" ];
     then
         create_config "$1"
-    else
-        clone_repo
-        create_directories
+        return 0
     fi
 }
 

@@ -1,5 +1,8 @@
 # archlinux-script-installer
 
+# NOTE: TEMPORARILY DISABLED NVIDIA fbdev
+This must be disabled because it can lead to a black screen if you start a VM with GPU and USB Passthrough, then stop and after that there will be a black screen.
+
 ## Disclaimer
 **THIS IS ONLY INTENDED FOR PERSONAL USE!**
 

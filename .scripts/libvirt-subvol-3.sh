@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source common_functions.sh
+source common-functions.sh
 
 
 readonly KVM_SUBVOL=("@var_lib_libvirt" "/var/lib/libvirt")
@@ -35,7 +35,7 @@ libvirt_subvol(){
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
 
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 

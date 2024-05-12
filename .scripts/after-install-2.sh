@@ -1,6 +1,7 @@
 #!/bin/bash
 
-readonly OPTIONAL_PKGS=("bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
@@ -10,7 +11,7 @@ readonly TEXLIVE_PKGS_DEPS=("biber")
 
 # for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
 
-source common_functions.sh
+source common-functions.sh
 
 readonly SHELLS_SUDO=("zsh" "fish" "sudo")
 readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial" "virtio-balloon")
@@ -20,41 +21,69 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # add_sentence_end_quote y el otro. Junstarlos en uno solo.
 # Asegurar que al menos un usuario esta en el grupo wheel
 
+# $1 (optional): Message to be displayed.
+ask_reboot(){
+    local -r MSG="${1:-"You need to reboot."}"
+
+    if ask "$MSG";
+    then
+        reboot
+    else
+        echo -e "${BRIGHT_CYAN}You need to manually reboot.${NO_COLOR}"
+    fi
+}
+
+# $1 (optional: true/false): Install GRUB? Defaults to yes, so it installs GRUB and generates config file.
 redo_grub(){
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+    local -r INSTALL="${1:-$TRUE}"
+
+    colored_msg "Reinstalling GRUB..." "${BRIGHT_CYAN}" "#"
+
+    [ "$INSTALL" -eq "$TRUE" ] && grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
+# https://wiki.archlinux.org/title/Keyboard_shortcuts#Kernel_(SysRq)
 enable_reisub(){
+    colored_msg "Enabling REISUB..." "${BRIGHT_CYAN}" "#"
+
     add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/etc/default/grub" "$TRUE" "$TRUE"
 
-    grub-mkconfig -o /boot/grub/grub.cfg
+    redo_grub "$FALSE"
 }
 
+# https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
+# https://wiki.archlinux.org/title/Dm-crypt/Specialties#Discard/TRIM_support_for_solid_state_drives_(SSD)
 enable_trim(){
+    colored_msg "Enabling TRIM..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S util-linux
     systemctl enable fstrim.timer
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
-        grub-mkconfig -o /boot/grub/grub.cfg 
+        redo_grub "$FALSE"
     fi
 }
 
 install_shells(){
+    colored_msg "Installing shells..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S "${SHELLS_SUDO[@]}"
 
     sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
 
-    echo "Check if everything is OK"
+    echo -e "${BRIGHT_CYAN}Check if everything is OK${NO_COLOR}"
     grep -i "%wheel" /etc/sudoers
+    sleep 3
 }
 
 add_users(){
+    colored_msg "User creation." "${BRIGHT_CYAN}" "#"
+
     local adduser_done="$TRUE"
     local username
-    # local is_sudo
     local shell
     local passwd_ok="$FALSE"
 
@@ -64,10 +93,10 @@ add_users(){
         echo -n "Username: "
         read -r username
 
-        echo "Available shells:"
+        echo -e "${BRIGHT_CYAN}Available shells:${NO_COLOR}"
         cat /etc/shells
 
-        echo -n "Select a shell: "
+        echo -ne "${BRIGHT_CYAN}Select a shell: ${NO_COLOR}"
         read -r shell
 
         if ask "Do you want this user to be part of the sudo (wheel) group?";
@@ -81,7 +110,7 @@ add_users(){
 
         while [ "$passwd_ok" -eq "$FALSE" ]
         do
-            echo "Now you will be asked to type a password for the new user"
+            echo -e "${BRIGHT_CYAN}Now you will be asked to type a password for the new user${NO_COLOR}"
             passwd "$username"
 
 
@@ -99,37 +128,55 @@ add_users(){
     done
 }
 
+# https://wiki.archlinux.org/title/Pacman#Enabling_parallel_downloads
 improve_pacman(){
+    colored_msg "Improving pacman performance..." "${BRIGHT_CYAN}" "#"
+
     sed -i "s/^#Parallel/Parallel/" /etc/pacman.conf
     sed -i "s/^#Color/Color/" /etc/pacman.conf
 
-    echo "These are the changed lines:"
+    echo -e "${BRIGHT_CYAN}These are the changed lines:${NO_COLOR}"
     grep "Parallel" /etc/pacman.conf
     grep -E "^Color" /etc/pacman.conf
+    sleep 3
 }
 
+# https://wiki.archlinux.org/title/Official_repositories#multilib
 enable_multilib(){
-    # awk 'BEGIN {num=20; first="#[h]"; entered="false"} (($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};1' example
+    colored_msg "Enabling multilib repository..." "${BRIGHT_CYAN}" "#"
+
     awk 'BEGIN {num=2; first="#[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){sub(/#/,"");num--;entered="true"};1' /etc/pacman.conf > /etc/pacman.conf.TMP && mv /etc/pacman.conf.TMP /etc/pacman.conf
 
     pacman --noconfirm -Syu
     
     redo_grub
 
-    echo "Check changes:"
+    echo -e "${BRIGHT_CYAN}Check changes:${NO_COLOR}"
     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /etc/pacman.conf
+    sleep 3
 }
 
+# https://wiki.archlinux.org/title/reflector
+# https://wiki.archlinux.org/title/general_recommendations#Mirrors
 enable_reflector(){
+    colored_msg "Enabling reflector..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S reflector
     systemctl enable reflector.timer
 }
 
+# https://wiki.archlinux.org/title/Btrfs#Scrub
 btrfs_scrub(){
+    colored_msg "Enabling btrfs scrub on root subvolume..." "${BRIGHT_CYAN}" "#"
+
     systemctl enable btrfs-scrub@-.timer
 }
 
+# https://wiki.archlinux.org/title/Arch_User_Repository
+# https://wiki.archlinux.org/title/makepkg#Parallel_compilation
 prepare_for_aur(){
+    colored_msg "Preparing system for AUR packages..." "${BRIGHT_CYAN}" "#"
+
     # Mejorar aqui el make para que sea multinucleo
     pacman --noconfirm -S base-devel git
 
@@ -137,13 +184,16 @@ prepare_for_aur(){
     # Enable multi-core compilation
     awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"-j$(nproc)\""}};1' /etc/makepkg.conf > /etc/makepkg.tmp && mv /etc/makepkg.tmp /etc/makepkg.conf
 
-    echo "Check changes: "
+    echo -e "${BRIGHT_CYAN}Check changes: ${NO_COLOR}"
     grep "MAKEFLAGS=" /etc/makepkg.conf
     echo ""
+    sleep 3
 }
 
+# https://wiki.archlinux.org/title/Bluetooth
 install_bluetooth(){
-    echo "Installing bluetooth..."
+    colored_msg "Installing bluetooth..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S bluez bluez-utils
 
     lsmod | grep -i btusb
@@ -151,7 +201,7 @@ install_bluetooth(){
 
     if [ "$EXIT_CODE" -eq "$FALSE" ];
     then
-        echo "btusb module not loaded. Creating file to load it..."
+        echo -e "${RED}btusb module not loaded.${NO_COLOR} ${BRIGHT_CYAN}Creating file to load it...${NO_COLOR}"
 
         modprobe btusb
 
@@ -162,11 +212,11 @@ install_bluetooth(){
     systemctl start bluetooth.service
 }
 
+# https://wiki.archlinux.org/title/NTFS
 enable_ntfs(){
-    echo "Installing ntfs-3g..."
-    pacman --noconfirm -S ntfs-3g
+    colored_msg "Installing NTFS-3G drivers..." "${BRIGHT_CYAN}" "#"
 
-    # https://wiki.archlinux.org/title/NTFS
+    pacman --noconfirm -S ntfs-3g
 }
 
 get_sudo_user(){
@@ -174,7 +224,11 @@ get_sudo_user(){
 }
 
 install_optional_pkgs(){
+    colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
+
     local -r USER=$(get_sudo_user)
+
+    [ "$root_fs" = "btrfs" ] && OPTIONAL_PKGS=( "${OPTIONAL_PKGS[@]}" "${OPTIONAL_PKGS_BTRFS[@]}")
 
     sudo -S -i -u "$USER" yay -S "${OPTIONAL_PKGS[@]}"
 
@@ -191,6 +245,9 @@ install_optional_pkgs(){
     fi
 }
 
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#Scaling_drivers
+# https://wiki.archlinux.org/title/CPU_frequency_scaling#amd_pstate
 install_cpu_scaler(){
     # To implement on a real machine
 #     watch cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq
@@ -198,28 +255,28 @@ install_cpu_scaler(){
 # https://docs.kernel.org/admin-guide/pm/amd-pstate.html
 # https://gitlab.freedesktop.org/upower/power-profiles-daemon#power-profiles-daemon
 
+    colored_msg "Installing cpu scaler..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S powerdevil power-profiles-daemon python-gobject
 
-    echo "Enabling and starting service..."
+    echo -e "${BRIGHT_CYAN}Enabling and starting service...${NO_COLOR}"
     systemctl enable power-profiles-daemon.service
     systemctl start power-profiles-daemon.service
 
     if [ "$is_intel" -eq "$FALSE" ];
     then
-        echo "Adding AMD P-State driver..."
+        echo -e "${BRIGHT_CYAN}Adding AMD P-State driver...${NO_COLOR}"
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE" "$TRUE"
-        grub-mkconfig -o /boot/grub/grub.cfg
+        redo_grub "$FALSE"
     fi
-
-    echo "You need to reboot for changes to take effect"
 }
 
-# This function needs a reboot
+# https://wiki.archlinux.org/title/Hardware_video_acceleration
+# https://github.com/elFarto/nvidia-vaapi-driver?tab=readme-ov-file#configuration
 enable_hw_acceleration(){
-    # To implement on a real machine
-    echo "Enabling hardware acceleration..."
+    colored_msg "Enabling hardware acceleration..." "${BRIGHT_CYAN}" "#"
 
-#     Diagnostic tool
+    # Diagnostic tools
     pacman --noconfirm -S libva-utils vdpauinfo nvtop
 
     local i
@@ -227,13 +284,11 @@ enable_hw_acceleration(){
     do
         case $i in
             "nvidia")
-            #     Installation of NVIDIA codecs by default.
-                echo "Installing codecs for NVIDIA GPU..."
+                # Installation of NVIDIA codecs
+                echo -e "${BRIGHT_CYAN}Installing codecs for NVIDIA GPU...${NO_COLOR}"
                 pacman --noconfirm -S libva-nvidia-driver nvidia-settings
 
-                # echo "Checking if VA-API works on NVIDIA..."
-
-                echo "Creating environment variables..."
+                echo -e "${BRIGHT_CYAN}Creating environment variables...${NO_COLOR}"
 
                 # It is mandatory to set the environment variables.
                 if [ "$is_laptop" -eq "$TRUE" ];
@@ -255,68 +310,71 @@ MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
                 ;;
 
             "intel")
-                echo "Installing VA-API for Intel CPU..."
+                echo -e "${BRIGHT_CYAN}Installing VA-API for Intel CPU...${NO_COLOR}"
                 pacman --noconfirm -S intel-gpu-tools intel-media-driver libvdpau-va-gl
                 ;;
 
             *)
-                echo "Unknown error. Exiting..."
+                echo -e "${RED}Unknown error. Exiting...${NO_COLOR}"
                 exit 1
                 ;;
         esac
     done
-
-    echo "Please reboot your system for changes to take effect."
 }
 
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
 install_firewall(){
-    echo "Installing firewall..."
+    colored_msg "Installing firewall..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S ufw gufw
 
-    echo "Enabling and starting ufw.service..."
+    echo -e "${BRIGHT_CYAN}Enabling and starting ufw.service...${NO_COLOR}"
     systemctl enable ufw.service
     systemctl start ufw.service
 
     ufw enable
 
-#     https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
+    # https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
     ufw default deny
     ufw allow from 192.168.0.0/24
     ufw limit ssh
 }
 
+# https://wiki.archlinux.org/title/Xorg
+# https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 install_xorg(){
     local i
     for i in "${gpu_type[@]}"
     do
         case $i in
             "amd")
-                echo "WIP since I do not have an AMD GPU. Exiting..."
+                echo -e "${BRIGHT_CYAN}WIP since I do not have an AMD GPU. Exiting...${NO_COLOR}"
                 exit 0
                 ;;
 
             "intel")
-                echo "Installing Intel drivers..."
-                echo "CHECK IF THESE PACKAGES ARE CORRECT!"
+                echo -e "${BRIGHT_CYAN}Installing Intel drivers...${NO_COLOR}"
+                echo -e "${YELLOW}CHECK IF THESE PACKAGES ARE CORRECT!${NO_COLOR}"
                 sleep 3
                 pacman --noconfirm -S mesa lib32-mesa vulkan-intel lib32-vulkan-intel
                 ;;
             
             "nvidia")
-                echo "Installing nvidia drivers..."
+                echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
                 pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
 
                 if [ "$is_laptop" -eq "$FALSE" ];
                 then
                     # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
                     echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
-                    echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    echo "# options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
                     # To check if it is working: 
                     # cat /sys/module/nvidia_drm/parameters/modeset
                 fi
                 ;;
             *)
-                echo "Unknown error. Exiting..."
+                echo -e "${RED}Unknown error. Exiting...${NO_COLOR}"
                 exit 1
         esac
     done
@@ -326,9 +384,10 @@ install_xorg(){
 }
 
 install_kde(){
+    colored_msg "Installing KDE Plasma..." "${BRIGHT_CYAN}" "#"
+
     # Aqui se deberia aplicar el fix para que sea xorg rootless
-    echo "Installing KDE Plasma..."
-    pacman --noconfirm -S plasma-meta plasma-wayland-session 
+    pacman --noconfirm -S plasma-meta
 
     if ask "Do you want to install extra applications for KDE?";
     then
@@ -338,26 +397,34 @@ install_kde(){
     systemctl enable sddm.service
 
     add_global_var_to_file "is_kde" "$TRUE" "$VAR_FILE_LOC"
-    echo "Please reboot your system for changes to take effect."
 }
 
 install_gnome(){
-add_global_var_to_file "is_kde" "$FALSE" "$VAR_FILE_LOC"
-true
+    colored_msg "Installing GNOME..." "${BRIGHT_CYAN}" "#"
+    add_global_var_to_file "is_kde" "$FALSE" "$VAR_FILE_LOC"
+    echo "WIP"
 }
 
+# Huge pages, iommu, nested virt, tpm, uefi,
+# https://wiki.archlinux.org/title/KVM
+# https://wiki.archlinux.org/title/KVM#Nested_virtualization
+# https://wiki.archlinux.org/title/KVM#Secure_Boot
+# https://wiki.archlinux.org/title/KVM#Enabling_huge_pages
+# https://wiki.archlinux.org/title/QEMU
+# https://wiki.archlinux.org/title/QEMU#Booting_in_UEFI_mode
+# https://wiki.archlinux.org/title/QEMU#Trusted_Platform_Module_emulation
+# https://wiki.archlinux.org/title/Libvirt
+# https://wiki.archlinux.org/title/Libvirt#UEFI_support
+# https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Enabling_IOMMU
 install_kvm(){
-    # Aqui hay que crear el subvolumen libvirt
-    # Aqui tambien hay que recordar instalar tpm
-#     Huge pages, iommu, nested virt, tpm, uefi,
-    echo "Installing KVM..."
+    colored_msg "Installing KVM..." "${BRIGHT_CYAN}" "#"
 
     lsmod | grep kvm
     local -r MODPROBE_KVM="$?"
 
     if [ "$MODPROBE_KVM" -gt "0" ];
     then
-        echo "Error. Cant use KVM. Exiting..."
+        echo -e "${RED}Error. Cant use KVM. Exiting...${NO_COLOR}"
         return "$FALSE"
     fi
 
@@ -371,11 +438,11 @@ install_kvm(){
 
     if [ "$modprobe_cpu" -gt "0" ];
     then
-        echo "Error. Not loaded CPU specific KVM. Exiting."
+        echo -e "${RED}Error. Not loaded CPU specific KVM. Exiting.${NO_COLOR}"
         return "$FALSE"
     fi
 
-#     Checking if virtio modules are loaded
+    # Checking if virtio modules are loaded
     local virtio_status
 
     lsmod | grep virtio
@@ -383,7 +450,7 @@ install_kvm(){
 
     if [ "$virtio_status" -gt "0" ];
     then
-        echo "Virtio modules are not loaded. Loading and creating them..."
+        echo -e "${RED}Virtio modules are not loaded.${NO_COLOR} ${BRIGHT_CYAN}Loading and creating them...${NO_COLOR}"
 
         truncate -s0 /etc/modules-load.d/virtio.conf
 
@@ -395,22 +462,22 @@ install_kvm(){
         unset i
     fi
 
-#     Now to the nested virtualization
+    # Now to the nested virtualization
     modprobe -r "$cpu_string"
     modprobe "$cpu_string" nested=1
 
-#     Create file to enable nested virtualization
+    # Create file to enable nested virtualization
     echo "options $cpu_string nested=1" > /etc/modprobe.d/nested_virt.conf
 
-#     QEMU part
+    # QEMU part
     pacman --noconfirm -S qemu-full qemu-block-gluster qemu-block-iscsi samba qemu-guest-agent qemu-user-static
 
-#     UEFI Support
-    echo "Installing packages for UEFI and TPM Support..."
+    # UEFI Support
+    echo -e "${BRIGHT_CYAN}Installing packages for UEFI and TPM Support...${NO_COLOR}"
     pacman --noconfirm -S edk2-ovmf swtpm
 
-#     IOMMU
-    echo "Setting up IOMMU..."
+    # IOMMU
+    echo -e "${BRIGHT_CYAN}Setting up IOMMU...${NO_COLOR}"
     add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
 
     if [ "$is_intel" -eq "$TRUE" ];
@@ -420,24 +487,24 @@ install_kvm(){
 
     redo_grub
 
-#     Libvirt installation
-    echo "Installing libvirt..."
+    # Libvirt installation
+    echo -e "${BRIGHT_CYAN}Installing libvirt...${NO_COLOR}"
 
     pacman -S libvirt
     pacman -S --asdeps iptables-nft dnsmasq openbsd-netcat dmidecode
     pacman -S virt-manager
 
-#     Setting up libvirt authentication
+    # Setting up libvirt authentication
     local more_users="$TRUE"
     local user
     local users_array=()
 
     while [ "$more_users" -eq "$TRUE" ]
     do
-        echo -n "Type a user to add to libvirt group: "
+        echo -ne "${YELLOW}Type a user to add to libvirt group (empty to skip adding a user): ${NO_COLOR}"
         read -r user
 
-        users_array=("${users_array[@]}" "$user")
+        [ -n "$user" ] && users_array=("${users_array[@]}" "$user")
 
         ask "Do you want to add another user?"
         more_users="$?"
@@ -445,38 +512,38 @@ install_kvm(){
 
     for i in "${users_array[@]}"
     do
-        echo "Adding $i"
+        echo -e "${BRIGHT_CYAN}Adding $i${NO_COLOR}"
         gpasswd -a "$i" libvirt
     done
     unset i
 
-    echo "Starting daemons..."
+    echo -e "${BRIGHT_CYAN}Starting daemons...${NO_COLOR}"
     systemctl start libvirtd.service
     systemctl start virtlogd.service
 
     systemctl enable libvirtd.service
-
-    echo "Please reboot your system to archiso again and copy .scripts foler to archiso's root folder."
-    sleep 10
 }
 
+# https://wiki.archlinux.org/title/CUPS
+# https://wiki.archlinux.org/title/SANE
 install_printer(){
-    echo "Installing printer service..."
+    colored_msg "Installing printer service..." "${BRIGHT_CYAN}" "#"
 
     pacman --noconfirm -S cups cups-pdf
 
-    echo "Enabling CUPS socket..."
+    echo -e "${BRIGHT_CYAN}Enabling CUPS socket...${NO_COLOR}"
     systemctl enable cups.socket
 
-    echo "Installing scanner (SANE) packages..."
+    echo -e "${BRIGHT_CYAN}Installing scanner (SANE) packages...${NO_COLOR}"
     pacman --noconfirm -S sane
     pacman --noconfirm --asdeps -S sane-airscan
 
     ask "Do you want to install Simple Scan?" && pacman --noconfirm -S simple-scan
 }
 
+# https://wiki.archlinux.org/title/Microsoft_fonts#Extracting_fonts_from_a_Windows_ISO
 install_ms_fonts(){
-    echo "Installing Microsoft Fonts..."
+    colored_msg "Installing Microsoft Fonts..." "${BRIGHT_CYAN}" "#"
 
     local is_7z_installed="$TRUE"
 
@@ -485,7 +552,7 @@ install_ms_fonts(){
 
     [ "$is_7z_installed" -eq "$FALSE" ] && pacman --noconfirm -S p7zip
 
-#     In case the image is in another partition
+    # In case the image is in another partition
     ask "Is the Windows ISO on another drive?"
     local -r OTHER_DRIVE="$?"
     local drive
@@ -496,22 +563,22 @@ install_ms_fonts(){
         while [ "$is_done" -eq "$FALSE" ]
         do
             lsblk
-            echo -n "Please type partition: "
+            echo -ne "${YELLOW}Please type partition: ${NO_COLOR}"
             read -r drive
 
             ask "You have selected $drive. Is that correct?"
             is_done="$?"
         done
-    fi
 
-    mount "$drive" /mnt -o ro,noexec
+        mount "$drive" /mnt -o ro,noexec
+    fi
 
     local location
     is_done="$FALSE"
 
     while [ "$is_done" -eq "$FALSE" ]
     do
-        echo -n "Please type location: "
+        echo -ne "${YELLOW}Please type location: ${NO_COLOR}"
         read -r location
 
         if [ -f "$location" ];
@@ -519,21 +586,21 @@ install_ms_fonts(){
             ask "Image exists. Do you want to continue?"
             is_done="$?"
         else
-            echo "File does not exist at this location: $location"
+            echo -e "${RED}File does not exist at this location:${NO_COLOR} $location"
         fi
     done
 
-#     Now we need to copy the iso to another location
-    echo "Copying ISO to another folder..."
+    # Now we need to copy the iso to another location
+    echo -e "${BRIGHT_CYAN}Copying ISO to another folder...${NO_COLOR}"
     cp "$location" /root
 
-#     We now unmount the drive since we dont need it anymore
-    umount /mnt
+    # We now unmount the drive since we dont need it anymore
+    [ "$OTHER_DRIVE" -eq "$TRUE" ] && umount /mnt
 
-#     We extract the contents of the ISO
+    # We extract the contents of the ISO
     local -r ISO_LOCATION=$(echo "$location" | awk 'BEGIN{ OFS=FS="/" } { print "/root",$NF }')
-    7z e "$ISO_LOCATION" sources/install.wim
-    7z e install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -ofonts/
+    7z e "$ISO_LOCATION" sources/install.wim -o/root
+    7z e /root/install.wim 1/Windows/{Fonts/"*".{ttf,ttc},System32/Licenses/neutral/"*"/"*"/license.rtf} -o/root/fonts/
 
     mkdir -p /usr/local/share/fonts/WindowsFonts
     cp /root/fonts/* /usr/local/share/fonts/WindowsFonts/
@@ -542,26 +609,30 @@ install_ms_fonts(){
     fc-cache --force
     fc-cache-32 --force
 
-    echo "Deleting Windows image and tmp directories..."
-    rm -r "$ISO_LOCATION" "/root/install.wim /root/fonts"
+    echo -e "${BRIGHT_CYAN}Deleting Windows image and tmp directories...${NO_COLOR}"
+    rm -r "$ISO_LOCATION" "/root/install.wim" "/root/fonts"
 
-    [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
+    # [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
 }
 
 install_lsd(){
-    # Aqui se debe instalar lsd y la fuente nerd
+    colored_msg "Installing lsd and a nerd font..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S lsd ttf-hack-nerd
 }
 
+# https://wiki.archlinux.org/title/snapper
+# https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
+# https://wiki.archlinux.org/title/snapper#Configuration_of_snapper_and_mount_point
+# https://wiki.archlinux.org/title/snapper#Wrapping_pacman_transactions_in_snapshots
 btrfs_snapshots(){
-    # Aqui debe ir el hook de pacman
-    echo "Installing snapper and snap-pac..."
+    colored_msg "Installing snapper and snap-pac..." "${BRIGHT_CYAN}" "#"
 
     pacman --noconfirm -S snapper snap-pac
 
     snapper -c root create-config /
 
-    echo "Deleting default snapper layout..."
+    echo -e "${BRIGHT_CYAN}Deleting default snapper layout...${NO_COLOR}"
 
     btrfs subvolume delete /.snapshots
     mkdir /.snapshots
@@ -579,7 +650,7 @@ btrfs_snapshots(){
 
     chmod 750 /.snapshots
 
-    echo "Enabling snapper timers..."
+    echo -e "${BRIGHT_CYAN}Enabling snapper timers...${NO_COLOR}"
     systemctl enable snapper-timeline.timer
     systemctl enable snapper-cleanup.timer
     systemctl enable snapper-boot.timer
@@ -590,11 +661,15 @@ btrfs_snapshots(){
 }
 
 disable_ssh_service(){
+    colored_msg "DEBUG. Disabling SSH service..." "${RED}" "#"
+
     systemctl disable sshd.service
     sed -i "s/^PermitRootLogin yes/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
 }
 
 install_yay(){
+    colored_msg "Installing AUR helper (yay)..." "${BRIGHT_CYAN}" "#"
+
     # https://stackoverflow.com/questions/5560442/how-to-run-two-commands-with-sudo
     local -r USER=$(get_sudo_user)
 
@@ -603,7 +678,7 @@ install_yay(){
     # https://unix.stackexchange.com/questions/176997/sudo-as-another-user-with-their-environment
     sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/yay\" && makepkg -sri"
 
-    echo "Configuring yay..."
+    echo -e "${BRIGHT_CYAN}Configuring yay...${NO_COLOR}"
     sudo -S -i -u "$USER" yay -Y --gendb
     sudo -S -i -u "$USER" yay -Syu --devel
     sudo -S -i -u "$USER" yay -Y --devel --save 
@@ -611,8 +686,10 @@ install_yay(){
     redo_grub
 }
 
+# https://wiki.archlinux.org/title/dm-crypt/Device_encryption#Keyfiles
+# https://wiki.archlinux.org/title/Dm-crypt/System_configuration#rd.luks.key
 enable_crypt_keyfile(){
-    echo "Enabling keyfile at boot..."
+    colored_msg "Enabling keyfile at boot..." "${BRIGHT_CYAN}" "#"
 
     ask "Is your pendrive inserted? If not, insert it now."
 
@@ -622,7 +699,7 @@ enable_crypt_keyfile(){
     while [ "$is_done" -eq "$FALSE" ]
     do
         lsblk
-        echo -n "Select drive: "
+        echo -ne "${YELLOW}Select drive: ${NO_COLOR}"
         read -r drive
 
         ask "You have selected $drive. Is that OK?"
@@ -640,7 +717,7 @@ enable_crypt_keyfile(){
     while [ "$is_done" -eq "$FALSE" ]
     do
         lsblk "$drive"
-        echo -n "Select partition: "
+        echo -ne "${Y}Select partition: ${NO_COLOR}"
         read -r part
 
         ask "You have selected $part. Is that OK?"
@@ -661,7 +738,7 @@ Select one of the following options:
     2) fat32
     3) btrfs"
 
-        echo -n "Type current or desired filesystem: "
+        echo -ne "${BRIGHT_CYAN}Type current or desired filesystem: ${NO_COLOR}"
         read -r fs_type
         case $fs_type in
             "ext4"|"1")
@@ -678,7 +755,7 @@ Select one of the following options:
                 ;;
             *)
                 is_wrong="$TRUE"
-                echo "Wrong filesystem."
+                echo -e "${RED}Wrong filesystem.${NO_COLOR}"
                 ;;
         esac
 
@@ -696,7 +773,7 @@ Select one of the following options:
 
     if [ "$wants_format" -eq "$TRUE" ];
     then
-        echo "Formatting partition..."
+        echo -e "${BRIGHT_CYAN}Formatting partition...${NO_COLOR}"
 
         case "$selected_module" in
             "ext4")
@@ -710,7 +787,7 @@ Select one of the following options:
                 mkfs.btrfs -L pen "$part"
                 ;;
             *)
-                echo "Unknown error."
+                echo -e "${RED}Unknown error.${NO_COLOR}"
                 return 1
                 ;;
         esac
@@ -737,7 +814,7 @@ Select one of the following options:
     cryptsetup luksAddKey "$sys_part" "/mnt/$keyfile_name"
 
     # Adding the modules on mkinitcpio, only if they are not already there
-    echo "Adding $selected_module to mkinitcpio.conf..."
+    echo -e "${BRIGHT_CYAN}Adding $selected_module to mkinitcpio.conf...${NO_COLOR}"
     ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
     mkinitcpio -P
 
@@ -747,11 +824,11 @@ Select one of the following options:
     if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
     then
         # If the entry exists, we add a new parameter inside
-        echo "The entry exists. Adding new option."
+        echo -e "${BRIGHT_CYAN}The entry exists. Adding new option.${NO_COLOR}"
         add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
     else
         # If the entry does not exist, we add rd.luks.options directly.
-        echo "The entry does not exist. Adding new option"
+        echo -e "${BRIGHT_CYAN}The entry does not exist. Adding new option.${NO_COLOR}"
         add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
     fi
 
@@ -769,21 +846,20 @@ Select one of the following options:
 }
 
 # CHECK FOR ROOTLESS WAYLAND!!!
+# https://wiki.archlinux.org/title/SDDM#Rootless
 rootless_kde(){
-    local -r RESULT=$(ps -o user= -C Xorg)
+    colored_msg "Enabling rootless SDDM..." "${BRIGHT_CYAN}" "#"
 
-    echo "Making SDDM Rootless..."
+    local -r RESULT=$(ps -o user= -C Xorg)
 
     if [ "$RESULT" = "root" ];
     then
-        echo "Creating file..."
-
         mkdir /etc/sddm.conf.d
 
         echo "[General]" > /etc/sddm.conf.d/rootless-x11.conf
         echo "DisplayServer=x11-user" >> /etc/sddm.conf.d/rootless-x11.conf
     else
-        echo "Already running in rootless mode."
+        echo -e "${BRIGHT_CYAN}Already running in rootless mode.${NO_COLOR}"
     fi
 }
 
@@ -791,7 +867,10 @@ cleanup(){
     rm -rf /root/after_install.tmp
 }
 
+# https://wiki.archlinux.org/title/Pacman#Cleaning_the_package_cache
 enable_paccache(){
+    colored_msg "Enabling paccache..." "${BRIGHT_CYAN}" "#"
+
     pacman --noconfirm -S pacman-contrib
 
     if ask "Do you want to set a custom number of cached file?";
@@ -807,49 +886,168 @@ Unused packages: $RUK"
 
         if [ "$ans" -eq "$FALSE" ];
         then
-            echo -n "Recent version number (default: $RK): "
+            echo -ne "${BRIGHT_CYAN}Recent version number (default: $RK): ${NO_COLOR}"
             read -r RK
 
-            echo -n "Unused packages number (default: $RUK): "
+            echo -ne "${BRIGHT_CYAN}Unused packages number (default: $RUK): ${NO_COLOR}"
             read -r RUK
         fi
 
-        echo "Changing paccache.service..."
+        echo -e "${BRIGHT_CYAN}Changing paccache.service...${NO_COLOR}"
         awk 'BEGIN{OFS=FS="="} /^ExecStart=/{cmd=substr($0,1,length($0)-3); $0="# "$0"\n"cmd" -rk"'"$RK"'"\n"cmd" -ruk"'"$RUK"'};1' /usr/lib/systemd/system/paccache.service > /usr/lib/systemd/system/paccache.service.TMP && mv /usr/lib/systemd/system/paccache.service.TMP /usr/lib/systemd/system/paccache.service
+        
+        echo -e "${BRIGHT_CYAN}IMPORTANT! You need to manually edit the service file every time paccache updates.${NO_COLOR}"
+        sleep 3
     fi
 
-    echo "Enabling and starting paccache.timer..."
+    echo -e "${BRIGHT_CYAN}Enabling and starting paccache.timer...${NO_COLOR}"
     systemctl enable paccache.timer
     systemctl start paccache.timer
 }
 
+
+# https://epson.com/Support/wa00821
+install_printer_drivers(){
+    local -r USER=$(get_sudo_user)
+
+    colored_msg "Printer specific drivers installation" "${BRIGHT_CYAN}" "#"
+
+    echo "Currently available printers:
+1) EPSON ET-2860 (also for other inkjet printers, check epson page for more info)"
+
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo -ne "${YELLOW}Choose an option (empty to exit):${NO_COLOR} "
+        read -r selection
+
+        case $selection in
+            "1")
+                echo -e "${BRIGHT_CYAN}Installing EPSON inkjet printer drivers...${NO_COLOR}"
+                sudo -S -i -u "$USER" yay -S epson-inkjet-printer-escpr epsonscan2 epsonscan2-non-free-plugin
+                is_done="$TRUE"
+                ;;
+
+            "")
+                echo -e "${BRIGHT_CYAN}Not installing anything${NO_COLOR}"
+                is_done="$TRUE"
+                ;;
+
+            *)
+                echo -e "${RED}Wrong option${NO_COLOR}"
+                is_done="$FALSE"
+                ;;
+        esac
+    done
+}
+
+# https://wiki.archlinux.org/title/Dual_boot_with_Windows#Time_standard
+# https://wiki.archlinux.org/title/systemd-timesyncd
+sync_time_dual_boot(){
+    colored_msg "Time synchronization" "${BRIGHT_CYAN}" "#"
+
+    if ask "Are you dual-booting another OS that is not Linux?";
+    then
+        echo -e "${GREEN}IMPORTANT!!${NO_COLOR} You need to complete the configuration by going to the following URL: ${BRIGHT_CYAN}https://wiki.archlinux.org/title/System_time#UTC_in_Microsoft_Windows${NO_COLOR}
+
+In any case, you can use the *.reg file located in .scripts/win64 to install it on Windows."
+    fi
+
+    echo -e "${BRIGHT_CYAN}Enabling NTP...${NO_COLOR}"
+    systemctl enable systemd-timesyncd.service
+    systemctl start systemd-timesyncd.service
+
+    timedatectl set-ntp true
+}
+
+
+# https://wiki.archlinux.org/title/fan_speed_control
+# https://gitlab.com/coolercontrol/coolercontrol/-/wikis/config-files
+enable_fan_control(){
+    local -r USER=$(get_sudo_user)
+    colored_msg "Installing Fan Control software..." "${BRIGHT_CYAN}" "#"
+
+    echo -e "${BRIGHT_CYAN}Installing CoolerControl...${NO_COLOR}"
+    sudo -S -i -u "$USER" yay -S coolercontrol
+
+    echo -e "${BRIGHT_CYAN}Enabling coolercontrol service...${NO_COLOR}"
+    systemctl enable --now coolercontrold
+
+    local is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        echo "
+Options:
+1) Torre-AMD (R9 5900X - NVIDIA RTXC 3080 Ti)
+"
+
+        echo -ne "${YELLOW}Please select an option: ${NO_COLOR}"
+        read -r selection
+
+        case $selection in
+            "1")
+                echo -e "${BRIGHT_CYAN}Copying profile...${NO_COLOR}"
+                cp CoolerControl/Torre-AMD/* /etc/coolercontrol
+                systemctl restart coolercontrold
+                is_done="$TRUE"
+                ;;
+            
+            *)
+                echo -e "${RED}Wrong option${NO_COLOR}"
+                is_done="$FALSE"
+                ;;
+        esac
+    done
+}
+
+# https://wiki.archlinux.org/title/improving_performance#Improving_system_responsiveness_under_low-memory_conditions
+# Configuration extracted from Fedora and Ubuntu
+# See config: systemd-analyze cat-config systemd/oomd.conf
+enable_oomd(){
+    colored_msg "Enabling systemd-oomd.service..." "${BRIGHT_CYAN}" "#"
+
+    if ask "Do you want to add the recommended configuration?";
+    then
+        echo -e "${BRIGHT_CYAN}Adding the recommended configuration to /etc/systemd/oomd.conf...${NO_COLOR}"
+        echo "DefaultMemoryPressureDurationSec=20s" >> /etc/systemd/oomd.conf
+    fi
+
+    echo -e "${BRIGHT_CYAN}Enabling and starting the service...${NO_COLOR}"
+    systemctl enable --now systemd-oomd.service
+}
+
+
 # Laptop specific functions
 enable_envycontrol(){
+    colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
+
     local -r USER=$(get_sudo_user)
     
-    echo "Enabling envycontrol..."
-
     sudo -S -i -u "$USER" yay -S envycontrol
 
-    echo "Switching to integrated..."
+    echo -e "${BRIGHT_CYAN}Switching to integrated mode...${NO_COLOR}"
     envycontrol -s integrated
 }
 
+# https://wiki.archlinux.org/title/MSI_GE75_Raider_8SX#Driver_options
 laptop_extra_config(){
     # aqui va la configuracion de los altavoces y eso
-    echo "Enabling modprobe config..."
+    echo -e "${BRIGHT_CYAN}Enabling modprobe config...${NO_COLOR}"
 
     echo "options snd_hda_intel model=lenovo-y530" > /etc/modprobe.d/msi_laptop.conf
 }
 
 main(){
-    ask_global_vars
+    ask_global_vars "$FALSE" "$FALSE"
 
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 
     case $log_step in
         0)
+            ask "Do you want to enable NTP?" && sync_time_dual_boot
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
             install_shells
@@ -858,7 +1056,7 @@ main(){
             ask "Do you want to enable periodic pacman cache cleaning?" && enable_paccache
             ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
             ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
-            ask "Do you want to enable scrub?" && btrfs_scrub
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to enable scrub?" && btrfs_scrub
             ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
             ask "Do you want to install an AUR helper?" && install_yay
             ask "Do you want to install bluetooth service?" && install_bluetooth
@@ -868,8 +1066,7 @@ main(){
 
             ask "Do you want to install KDE?" && install_kde
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
-            sleep 5
-            reboot
+            ask_reboot
             ;;
 
         1)
@@ -879,11 +1076,11 @@ main(){
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
             # REBOOT
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
-            sleep 5
-            reboot
+            ask_reboot
             ;;
 
         2)
+            ask "Do you want to enable OOM Killer (systemd-oomd)?" && enable_oomd
             ask "Do you want to install the printer service?" && install_printer
             ask "Do you want to install a firewall?" && install_firewall
 
@@ -892,17 +1089,21 @@ main(){
 
             # CHECK IN THE FUTURE THE DAEMONS, THEY ARE SPLITTING THEM
             ask "Do you want to install KVM?" && install_kvm
-            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
-            sleep 5
-            reboot
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"    
+
+            if [ "$has_encryption" -eq  "$TRUE" ];
+            then        
+                ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
+            else
+                ask_reboot
+            fi
             ;;
 
         3)
             # REBOOT TO ARCHISO
             ask "Do you want to enable hardware acceleration?" && enable_hw_acceleration
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
-            sleep 5
-            reboot
+            ask_reboot
             ;;
 
         4)
@@ -912,15 +1113,16 @@ main(){
             ask "Do you want to install lsd and hack nerd font?" && install_lsd
             ask "Do you want to install Microsoft Fonts?" && install_ms_fonts
 
-            ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
+            [ "$root_fs" = "btrfs" ] && ask "Do you want to install snapper and snap-pac?" && btrfs_snapshots
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
-            sleep 5
-            reboot
+            ask_reboot
             ;;
         
         5)
             ask "Do you want to install optional packages?" && install_optional_pkgs
-
+            ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
+            [ "$is_laptop" -eq "$FALSE" ] && ask "Do you want to enable fan control?" && enable_fan_control
+            
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
             then 
                 ask "Do you want to enable laptop specific features?" && laptop_extra_config
@@ -935,12 +1137,28 @@ main(){
     esac
 
 
-    echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
+    # echo "BOOT INTO ARCHISO, MOUNT FILESYSTEM AND EXECUTE /mnt/root/last_step.sh"
     echo "Enable nerd font on Terminal emulator."
     echo "Please enable on boot in virt manager the default network by going into Edit->Connection details->Virtual Networks->default."
     echo "It is normal for colord.service to fail. You need to execute manually colord command once and then the service will start."
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
-    echo "CHECK FREEFILESYNC PACKAGE"
+    # echo "CHECK FREEFILESYNC PACKAGE"
+    echo "Disable automatic sleeping, screen shutoff and screen locking on Plasma"
+
+    if [ "$is_laptop" -eq "$FALSE" ];
+    then
+        echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
+#         echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
+# If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
+# 1) Open nvidia-settings.
+# 2) Click on \"Enable GPU Fan Settings\".
+# 3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
+# 4) If it does not go to 0% repeat these steps.
+
+# If after a while these steps do not work, then apply the default profile to the GPU and reapply the custom profile."
+        echo -e "Check inside CoolerControl if the ${YELLOW}GPU FAN PROFILE${NO_COLOR} is set to ${YELLOW}DEFAULT PROFILE${NO_COLOR}."
+        echo -e "If you want to play a game, change the ${YELLOW}GPU FAN PROFILE${NO_COLOR} to ${YELLOW}GPU Fan${NO_COLOR}."
+    fi
     # IN PROCESS
     # IMPORTANTE NO OLVIDAR
     # disable_ssh_service
