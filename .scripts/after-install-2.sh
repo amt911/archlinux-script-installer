@@ -416,6 +416,7 @@ install_gnome(){
 # https://wiki.archlinux.org/title/Libvirt
 # https://wiki.archlinux.org/title/Libvirt#UEFI_support
 # https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF#Enabling_IOMMU
+# https://wiki.archlinux.org/title/QEMU#Enabling_SPICE_support_on_the_guest
 install_kvm(){
     colored_msg "Installing KVM..." "${BRIGHT_CYAN}" "#"
 
@@ -1176,7 +1177,9 @@ main(){
     echo "You need to follow https://github.com/elFarto/nvidia-vaapi-driver/#environment-variables to configure Firefox HW ACC."
     # echo "CHECK FREEFILESYNC PACKAGE"
     echo "Disable automatic sleeping, screen shutoff and screen locking on Plasma"
-
+    echo -e "${GREEN}KVM Guests${NO_COLOR} -> Install spice-vdagent to share clipboard or use the iso image and install it on Windows."
+    echo "Refer to this link for more information: https://wiki.archlinux.org/title/QEMU#Enabling_SPICE_support_on_the_guest"
+    
     if [ "$is_laptop" -eq "$FALSE" ];
     then
         echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
