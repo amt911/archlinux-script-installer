@@ -1051,6 +1051,15 @@ install_wireguard(){
 }
 
 
+install_autoeq(){
+    colored_msg "Installing EasyEffects..." "${BRIGHT_CYAN}" "#"
+
+    local -r USER=$(get_sudo_user)
+    
+    sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins
+}
+
+
 # Laptop specific functions
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
@@ -1152,6 +1161,7 @@ main(){
         
         5)
             ask "Do you want to install Wireguard?" && install_wireguard
+            ask "Do you want to install EasyEffects (for AutoEq)?" && install_autoeq
             ask "Do you want to install optional packages?" && install_optional_pkgs
             ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
             [ "$is_laptop" -eq "$FALSE" ] && ask "Do you want to enable fan control?" && enable_fan_control
