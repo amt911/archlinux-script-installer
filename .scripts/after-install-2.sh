@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -1061,16 +1061,29 @@ install_autoeq(){
 
 
 # Laptop specific functions
+
+# https://wiki.archlinux.org/title/External_GPU#Xorg_rendered_on_iGPU,_PRIME_render_offload_to_eGPU
+# https://wiki.archlinux.org/title/PRIME#PRIME_GPU_offloading
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
 
     local -r USER=$(get_sudo_user)
     
-    sudo -S -i -u "$USER" yay -S envycontrol
+    sudo -S -i -u "$USER" yay -S envycontrol nvidia-prime
 
-    echo -e "${BRIGHT_CYAN}Switching to integrated mode...${NO_COLOR}"
-    envycontrol -s integrated
+    # echo -e "${BRIGHT_CYAN}Switching to integrated mode...${NO_COLOR}"
+    # envycontrol -s integrated
+
+    echo -e "${BRIGHT_CYAN}Adding temporary configuration...${NO_COLOR}"
+    echo "
+# PRIME Render on Wayland using NVIDIA GPU, since it is impossible to use
+if [ \$(envycontrol -q) = \"nvidia\" ] && [ \"\$XDG_SESSION_TYPE\" = \"wayland\" ];
+then
+    export __NV_PRIME_RENDER_OFFLOAD=1
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+fi" >> /etc/profile
 }
+
 
 # https://wiki.archlinux.org/title/MSI_GE75_Raider_8SX#Driver_options
 laptop_extra_config(){
@@ -1193,19 +1206,13 @@ main(){
     if [ "$is_laptop" -eq "$FALSE" ];
     then
         echo -e "${GREEN}IMPORTANT!!${NO_COLOR}"
-#         echo "Check if GPU fans go to 0% after cooling down from stress test (unigine superposition).
-# If they don't go to 0% do the following steps (repeat more than once if it doesn't work):
-# 1) Open nvidia-settings.
-# 2) Click on \"Enable GPU Fan Settings\".
-# 3) Stress the GPU again and wait for it to cool down. Keep nvidia-settings open at all times.
-# 4) If it does not go to 0% repeat these steps.
-
-# If after a while these steps do not work, then apply the default profile to the GPU and reapply the custom profile."
         echo -e "Check inside CoolerControl if the ${YELLOW}GPU FAN PROFILE${NO_COLOR} is set to ${YELLOW}DEFAULT PROFILE${NO_COLOR}."
         echo -e "If you want to play a game, change the ${YELLOW}GPU FAN PROFILE${NO_COLOR} to ${YELLOW}GPU Fan${NO_COLOR}."
+    else
+        echo -e "${BRIGHT_CYAN}Switching to integrated mode...${NO_COLOR}"
+        echo -e "If you are using ${YELLOW}Wayland${NO_COLOR} and ${YELLOW}NVIDIA${NO_COLOR} mode and you want to use the NVIDIA GPU, append ${GREEN}prime-run${NO_COLOR} to your programs"
     fi
-    # IN PROCESS
-    # IMPORTANTE NO OLVIDAR
+
     # disable_ssh_service
 }
 
