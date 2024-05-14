@@ -293,14 +293,7 @@ enable_hw_acceleration(){
                 # It is mandatory to set the environment variables.
                 if [ "$is_laptop" -eq "$TRUE" ];
                 then
-                    echo "
-# Mi config
-if [ \$(envycontrol -q | awk '{print \$NF}') = \"nvidia\" ];
-then
-    export LIBVA_DRIVER_NAME=nvidia
-    export MOZ_DISABLE_RDD_SANDBOX=1
-    export NVD_BACKEND=direct
-fi" >> /etc/profile
+                    cp "laptop_scripts/laptop_hw_acc.sh" "/etc/profile.d"
 
                 else
                     echo "LIBVA_DRIVER_NAME=nvidia
@@ -1075,13 +1068,7 @@ enable_envycontrol(){
     # envycontrol -s integrated
 
     echo -e "${BRIGHT_CYAN}Adding temporary configuration...${NO_COLOR}"
-    echo "
-# PRIME Render on Wayland using NVIDIA GPU, since it is impossible to use
-if [ \$(envycontrol -q) = \"nvidia\" ] && [ \"\$XDG_SESSION_TYPE\" = \"wayland\" ];
-then
-    export __NV_PRIME_RENDER_OFFLOAD=1
-    export __GLX_VENDOR_LIBRARY_NAME=nvidia
-fi" >> /etc/profile
+    cp "laptop_scripts/laptop_prime.sh" "/etc/profile.d"
 }
 
 
