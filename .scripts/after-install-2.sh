@@ -1203,4 +1203,40 @@ main(){
     # disable_ssh_service
 }
 
-main "$@"
+# main "$@"
+
+ask_global_vars "$FALSE" "$FALSE"
+
+# Source var files
+[ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
+fn2(){
+    local hook="kms"
+    
+    [ "$has_encryption" -eq "$TRUE" ] && hook="systemd"
+
+    awk '
+    BEGIN{OFS=FS="="}
+    /^HOOKS=/{
+        len=split($2, arr, / /);
+        printf("HOOKS=")
+
+        for(i=1; i<=len; i++){
+            if (arr[i]=="'$hook'")
+                arr[i]=arr[i]" plymouth"
+
+            if (i==len)
+                printf("%s", arr[i])
+            else
+                printf("%s ", arr[i])
+        }
+
+        printf("\n")
+    };
+
+    !/^HOOKS=/{print $0}
+
+    ' /etc/mkinitcpio.conf > salida
+}
+
+fn2
