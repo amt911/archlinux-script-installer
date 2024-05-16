@@ -1159,7 +1159,7 @@ main(){
             rootless_kde
 
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
-            ask "Do you want to install Plymouth (boot splash)?" && install_plymouth
+            ask "Do you want to install Plymouth (boot splash, not recommended)?" && install_plymouth
 
             # REBOOT
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
