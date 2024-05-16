@@ -33,7 +33,7 @@ ask_reboot(){
     fi
 }
 
-# $1 (optional: true/false): Install GRUB? Defaults to yes, so it installs GRUB and generates config file.
+# $1 (optional: true/false): Install GRUB? Defaults to true, so it installs GRUB and generates config file.
 redo_grub(){
     local -r INSTALL="${1:-$TRUE}"
 
@@ -1052,6 +1052,50 @@ install_autoeq(){
     sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins
 }
 
+install_plymouth(){
+    colored_msg "Installing Plymouth..." "${BRIGHT_CYAN}" "#"
+    local -r USER=$(get_sudo_user)
+    
+    sudo -S -i -u "$USER" yay -S plymouth
+
+    local hook="kms"
+    
+    [ "$has_encryption" -eq "$TRUE" ] && hook="systemd"
+
+    awk '
+    BEGIN{OFS=FS="="}
+    /^HOOKS=/{
+        len=split($2, arr, / /);
+        printf("HOOKS=")
+
+        for(i=1; i<=len; i++){
+            if (arr[i]=="'$hook'")
+                arr[i]=arr[i]" plymouth"
+
+            if (i==len)
+                printf("%s", arr[i])
+            else
+                printf("%s ", arr[i])
+        }
+
+        printf("\n")
+    };
+
+    !/^HOOKS=/{print $0}
+
+    ' /etc/mkinitcpio.conf > aux
+
+    mv aux /etc/mkinitcpio.conf
+
+    # Regenerate initramfs
+    mkinitcpio -P
+
+
+
+    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " splash" "/etc/default/grub" "$TRUE" "$TRUE"
+    redo_grub "$FALSE"
+}
+
 
 # Laptop specific functions
 
@@ -1115,6 +1159,8 @@ main(){
             rootless_kde
 
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
+            ask "Do you want to install Plymouth (boot splash)?" && install_plymouth
+
             # REBOOT
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
             ask_reboot
@@ -1203,40 +1249,4 @@ main(){
     # disable_ssh_service
 }
 
-# main "$@"
-
-ask_global_vars "$FALSE" "$FALSE"
-
-# Source var files
-[ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
-
-fn2(){
-    local hook="kms"
-    
-    [ "$has_encryption" -eq "$TRUE" ] && hook="systemd"
-
-    awk '
-    BEGIN{OFS=FS="="}
-    /^HOOKS=/{
-        len=split($2, arr, / /);
-        printf("HOOKS=")
-
-        for(i=1; i<=len; i++){
-            if (arr[i]=="'$hook'")
-                arr[i]=arr[i]" plymouth"
-
-            if (i==len)
-                printf("%s", arr[i])
-            else
-                printf("%s ", arr[i])
-        }
-
-        printf("\n")
-    };
-
-    !/^HOOKS=/{print $0}
-
-    ' /etc/mkinitcpio.conf > salida
-}
-
-fn2
+main "$@"
