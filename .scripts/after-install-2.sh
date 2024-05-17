@@ -1097,6 +1097,25 @@ install_plymouth(){
 }
 
 
+# https://wiki.archlinux.org/title/GRUB/Tips_and_tricks
+lower_grub_res(){
+    colored_msg "Lowering GRUB resolution..." "${BRIGHT_CYAN}" "#"
+
+    awk '/^GRUB_GFXMODE=/{
+        printf("# %s\n",$0)
+        printf("GRUB_GFXMODE=1920x1080x24,1024x768x32,auto\n")
+    }
+    
+    ! /^GRUB_GFXMODE=/{print $0}
+
+    ' "/etc/default/grub" > aux
+
+    mv aux /etc/default/grub
+    
+    redo_grub "$FALSE"
+}
+
+
 # Laptop specific functions
 
 # https://wiki.archlinux.org/title/External_GPU#Xorg_rendered_on_iGPU,_PRIME_render_offload_to_eGPU
@@ -1132,6 +1151,7 @@ main(){
 
     case $log_step in
         0)
+            ask "Do you want to lower grub resolution to 1080p to make menu navigation faster (usually occurs on HiDPI displays)?" && lower_grub_res
             ask "Do you want to enable NTP?" && sync_time_dual_boot
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
