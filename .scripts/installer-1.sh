@@ -157,8 +157,7 @@ mkfs_partitions(){
             ;;
 
         "ext4")
-            create_ext4
-            exit
+            create_ext4 "$drive"
             ;;
 
         *)
@@ -172,8 +171,13 @@ mkfs_partitions(){
 }
 
 # https://wiki.archlinux.org/title/ext4
+# $1: Drive location
 create_ext4(){
-    true
+    local -r DRIVE="$1"
+
+    mkfs.ext4 -L root "$DRIVE"
+
+    mount "$DRIVE" /mnt
 }
 
 # https://wiki.archlinux.org/title/btrfs
@@ -230,19 +234,26 @@ configure_timezone(){
     colored_msg "Timezone configuration..." "${BRIGHT_CYAN}" "#"
     local region
     local city
+    local is_done="$FALSE"
 
-    if [ "$#" -lt "2" ];
-    then
-        echo -ne "${YELLOW}Timezone region: ${NO_COLOR}"
-        read -r region
+    while [ "$is_done" -eq "$FALSE" ]
+    do
 
-        echo -ne "${YELLOW}City: ${NO_COLOR}"
-        read -r city
-    else
-        region="$1"
-        city="$2"
-    fi
+        if [ "$#" -lt "2" ];
+        then
+            echo -ne "${YELLOW}Timezone region: ${NO_COLOR}"
+            read -r region
 
+            echo -ne "${YELLOW}City: ${NO_COLOR}"
+            read -r city
+
+            [ -f "/usr/share/zoneinfo/$region/$city" ] && is_done="$TRUE"
+        else
+            region="$1"
+            city="$2"
+            is_done="$TRUE"
+        fi
+    done
     arch-chroot /mnt ln -sf /usr/share/zoneinfo/"$region"/"$city" /etc/localtime
 
     arch-chroot /mnt hwclock --systohc
@@ -396,21 +407,104 @@ configure_swap(){
 # https://wiki.archlinux.org/title/Mkinitcpio#Common_hooks
 # https://wiki.archlinux.org/title/dm-crypt/Encrypting_an_entire_system
 # If a module the is needed is not loaded, you can load it using
-configure_mkinitcipio(){
-    # Temporary patch: Only modify mkinitcpio.conf if the root partition is encrypted
+configure_mkinitcpio(){
+    readarray -td" " a < <(printf "%s" "$(grep -e "^HOOKS=" /mnt/etc/mkinitcpio.conf | cut -d= -f2 | sed "s/[()]//g")")
+
+    local i
+    local aux=()
+    # First pass to add keyboard before autodetect
+    for i in "${a[@]}"
+    do
+        if [ "$i" = "autodetect" ];
+        then
+            aux+=("keyboard" "autodetect")
+
+        elif [ "$i" != "keyboard" ];
+        then
+            aux+=("$i")
+        fi
+    done
+    a=("${aux[@]}")
+    aux=()
+
+    unset i
+
+    # If it has encryption, it need to do a second pass to substitute some hooks to systemd
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        sed -i "s/^HOOKS/#HOOKS/g" "/mnt/etc/mkinitcpio.conf"
+        for i in "${a[@]}"
+        do
+            if [ "$i" = "udev" ];
+            then
+                aux+=("systemd")
 
-        # Insert new hook after commented one
-        # I insert keyboard before autodetect because Arch Wiki says that it is mandatory for non-standard configurations (I have a Keychron K2 that will not boot without it)
-        sed -e '/^#HOOKS/a\' -e "HOOKS=(base systemd btrfs keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)" -i "/mnt/etc/mkinitcpio.conf"
+            elif [ "$i" = "keymap" ];
+            then
+                aux+=("sd-vconsole")
 
-        arch-chroot /mnt mkinitcpio -P
-    
-    else
-        echo -e "${BRIGHT_CYAN}There is no need to modify mkinitcpio.conf. Continuing...${NO_COLOR}"
+            elif [ "$i" = "block" ];
+            then
+                aux+=("$i")
+                aux+=("sd-encrypt")
+
+            elif [ "$i" != "usr" ] && [ "$i" != "resume" ] && [ "$i" != "consolefont" ];
+            then
+                aux+=("$i")
+
+            fi
+        done
+        unset i
+        a=("${aux[@]}")
+        aux=()
     fi
+
+
+    # If the filesystem is btrfs, it does a last pass to add the btrfs hook
+    if [ "$root_fs" = "btrfs" ];
+    then
+        local last_hook
+
+        if [ "$has_encryption" -eq "$FALSE" ];
+        then
+            # Finds if btrfs should be after udev, usr or resume. Only if it does not have FSE
+            for i in "${a[@]}"
+            do
+                if [ "$i" = "udev" ] || [ "$i" = "usr" ] || [ "$i" = "resume" ];
+                then
+                    last_hook="$i"
+                fi
+            done
+            unset i
+        fi
+
+        # Finally, it add the btrfs hook
+        for i in "${a[@]}"
+        do
+            aux+=("$i")
+            if [ "$i" = "systemd" ] || [ "$i" = "$last_hook" ];
+            then
+                aux+=("btrfs")
+            fi
+        done
+        unset i
+        a=("${aux[@]}")
+        aux=()
+    fi
+
+    awk -v hooks="${a[*]}" '
+    /^HOOKS=/{
+        print "#", $0
+        printf("HOOKS=(%s)\n", hooks)
+    }
+
+    ! /^HOOKS=/{
+        print $0
+    }
+    ' /mnt/etc/mkinitcpio.conf > /mnt/etc/mkinitcpio.conf.aux
+    
+    mv /mnt/etc/mkinitcpio.conf{.aux,}    
+
+    arch-chroot /mnt mkinitcpio -P
 }
 
 # $1: username. Empty for root
@@ -460,7 +554,9 @@ install_bootloader(){
     then
         local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME} rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+
+        [ "$root_fs" = "btrfs" ] && add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"        
     fi
 
     arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
@@ -507,7 +603,7 @@ main(){
 
     net_config
 
-    configure_mkinitcipio
+    configure_mkinitcpio
     
     [ "$has_swap" -eq "$TRUE" ] && configure_swap
 
