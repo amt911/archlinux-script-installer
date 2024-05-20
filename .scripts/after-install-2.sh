@@ -1198,7 +1198,7 @@ main(){
             ask "Do you want to install KVM?" && install_kvm
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"    
 
-            if [ "$has_encryption" -eq  "$TRUE" ];
+            if [ "$has_encryption" -eq  "$TRUE" ] && [ "$root_fs" = "btrfs" ];
             then        
                 ask_reboot "Please reboot your system to archiso again and copy .scripts folder to archiso root folder."
             else
