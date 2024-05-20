@@ -1,10 +1,13 @@
 # archlinux-script-installer
 
 ## NOTE: TEMPORARY FIXES:
-- Disabled NVIDIA fbdev: This must be disabled because it can lead to a black screen if you start a VM with GPU and USB Passthrough, then stop and after that there will be a black screen.
+
 - Added to /etc/profile some lines to use the NVIDIA GPU on Wayland sessions.
 
-## NOTE 2: Things to do
+## NOTE 2: THINGS TO WATCH OUT FOR:
+- Enabled NVIDIA fbdev: This led to a black screen in the past if you start a VM with GPU and USB Passthrough, then stop and after that there will be a black screen.
+
+## NOTE 3: Things to do
 - Investigate about ```nvidia-powerd.service``` since it does not work on my laptop with an RTX 2080.
 
 ## Disclaimer
