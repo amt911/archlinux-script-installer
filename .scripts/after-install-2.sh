@@ -334,9 +334,30 @@ install_firewall(){
     ufw limit ssh
 }
 
+# Install an aur package with the url passed as argument
+# $1: URL. Must finish in ".git"
+# https://stackoverflow.com/questions/5560442/how-to-run-two-commands-with-sudo
+# https://unix.stackexchange.com/questions/176997/sudo-as-another-user-with-their-environment
+install_aur_package(){
+    local -r USER=$(get_sudo_user)
+    local -r URL="$1"
+    local pkg_name
+
+    pkg_name=$(echo "$1" | cut -d/ -f4)
+    pkg_name=${pkg_name::-4}
+
+    sudo -S -i -u "$USER" git clone "$URL" "/home/$USER/$pkg_name"
+    sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/$pkg_name\" && makepkg -sri"
+}
+
+
 # https://wiki.archlinux.org/title/Xorg
 # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 install_xorg(){
+    echo -e "${BRIGHT_CYAN}Installing Xorg...${NO_COLOR}"
+
+    pacman --noconfirm -S xorg
+
     local i
     for i in "${gpu_type[@]}"
     do
@@ -354,8 +375,19 @@ install_xorg(){
                 ;;
             
             "nvidia")
-                echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                pacman --noconfirm -S xorg nvidia lib32-nvidia-utils
+                if ask "Do you want to install NVIDIA beta packages?";
+                then
+                    echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
+
+                    install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
+                    pacman -D --asdeps nvidia-utils-beta
+
+                    install_aur_package "https://aur.archlinux.org/nvidia-beta.git"
+                    install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                else
+                    echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
+                    pacman --noconfirm -S nvidia lib32-nvidia-utils nvidia-settings
+                fi
 
                 if [ "$is_laptop" -eq "$FALSE" ];
                 then
@@ -664,13 +696,7 @@ disable_ssh_service(){
 install_yay(){
     colored_msg "Installing AUR helper (yay)..." "${BRIGHT_CYAN}" "#"
 
-    # https://stackoverflow.com/questions/5560442/how-to-run-two-commands-with-sudo
-    local -r USER=$(get_sudo_user)
-
-    sudo -S -i -u "$USER" git clone https://aur.archlinux.org/yay.git "/home/$USER/yay"
-
-    # https://unix.stackexchange.com/questions/176997/sudo-as-another-user-with-their-environment
-    sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/yay\" && makepkg -sri"
+    install_aur_package "https://aur.archlinux.org/yay.git"
 
     echo -e "${BRIGHT_CYAN}Configuring yay...${NO_COLOR}"
     sudo -S -i -u "$USER" yay -Y --gendb
