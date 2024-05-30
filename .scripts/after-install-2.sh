@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin")
+OPTIONAL_PKGS=("chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -8,6 +8,16 @@ readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" 
 readonly LIBREOFFICE_PKGS_DEPS=("hunspell" "hunspell-es_es" "hyphen" "hyphen-es" "libmythes" "mythes-es")
 readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
 readonly TEXLIVE_PKGS_DEPS=("biber")
+
+
+# Sources:
+# https://github.com/lutris/docs/blob/master/WineDependencies.md#archendeavourosmanjaroother-arch-derivatives
+# https://wiki.archlinux.org/title/wine
+readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader")
+
+readonly GAMING_PKGS=("steam" "lutris")
+
+readonly EMU_PKGS=("rpcs3-bin" "dolphin-emu")
 
 # for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
 
@@ -243,6 +253,29 @@ install_optional_pkgs(){
         sudo -S -i -u "$USER" yay -S "${TEXLIVE_PKGS[@]}"
         sudo -S -i -u "$USER" yay -S --asdeps "${TEXLIVE_PKGS_DEPS[@]}"
     fi
+
+    if ask "Do you want to install WINE? (Runs some Windows programs)";
+    then
+        # Bad packages: 
+        # lib32-gst-plugins-bad -> lib32-libcdio-exit lib32-zvbi-exit
+        # lib32-gst-plugins-ugly
+        # lib32-gst-libav
+        # lib32-ffmpeg -> ffmpeg version too low
+
+        # Conflicts:
+        # ffmpeg-libfdk_aac and ffmpeg (packages: lib32-gst-plugins-ugly and lib32-gst-plugins-bad)    
+        sudo -S -i -u "$USER" yay -S "${WINE_PKGS[@]}"
+    fi
+
+    if ask "Do you want to install gaming apps?";
+    then
+        sudo -S -i -u "$USER" yay -S "${GAMING_PKGS[@]}"
+    fi
+
+    if ask "Do you want to install some emulators?";
+    then
+        sudo -S -i -u "$USER" yay -S "${EMU_PKGS[@]}"
+    fi
 }
 
 # https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
@@ -406,6 +439,7 @@ install_xorg(){
     unset i
 
     # I do not disable kms HOOK because nvidia-utils blacklists nouveau by default.
+    # Blacklisting location: /usr/lib/modprobe.d/nvidia-utils-beta.conf 
 }
 
 install_kde(){
@@ -1188,8 +1222,10 @@ main(){
             ask "Do you want to enable the multilib package (Steam)?" && enable_multilib
             ask "Do you want to enable reflector timer to update mirrorlist?" && enable_reflector
             [ "$root_fs" = "btrfs" ] && ask "Do you want to enable scrub?" && btrfs_scrub
-            ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
-            ask "Do you want to install an AUR helper?" && install_yay
+            # ask "Do you want to install the dependencies to use the AUR and enable parallel compilation?" && prepare_for_aur
+            # ask "Do you want to install an AUR helper?" && install_yay
+            prepare_for_aur
+            install_yay
             ask "Do you want to install bluetooth service?" && install_bluetooth
 
             # CHECK INSTALL_XORG ON LAPTOP. 

@@ -9,6 +9,13 @@
 
 ## NOTE 3: Things to do
 - Investigate about ```nvidia-powerd.service``` since it does not work on my laptop with an RTX 2080.
+- The following packages from WINE do not compile and install:
+    - Bad packages: 
+    - lib32-gst-plugins-bad -> lib32-libcdio-exit lib32-zvbi-exit
+    - lib32-gst-plugins-ugly
+    - lib32-gst-libav
+    - lib32-ffmpeg -> ffmpeg version too low
+<!-- - Remove ```--nocheck``` from WINE installation. -->
 
 ## Disclaimer
 **THIS IS ONLY INTENDED FOR PERSONAL USE!**
