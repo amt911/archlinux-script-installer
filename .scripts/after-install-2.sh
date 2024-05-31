@@ -337,7 +337,7 @@ enable_hw_acceleration(){
             "nvidia")
                 # Installation of NVIDIA codecs
                 echo -e "${BRIGHT_CYAN}Installing codecs for NVIDIA GPU...${NO_COLOR}"
-                pacman --noconfirm -S libva-nvidia-driver nvidia-settings
+                pacman --noconfirm -S libva-nvidia-driver
 
                 echo -e "${BRIGHT_CYAN}Creating environment variables...${NO_COLOR}"
 
