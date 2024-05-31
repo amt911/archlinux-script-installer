@@ -15,7 +15,7 @@ readonly TEXLIVE_PKGS_DEPS=("biber")
 # https://wiki.archlinux.org/title/wine
 readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader")
 
-readonly GAMING_PKGS=("steam" "lutris")
+readonly GAMING_PKGS=("steam" "lutris" "protontricks" "zenity" "mangohud" "lib32-mangohud")
 
 readonly EMU_PKGS=("rpcs3-bin" "dolphin-emu")
 
@@ -233,6 +233,20 @@ get_sudo_user(){
     grep -E "^wheel" /etc/gshadow | cut -d: -f4 | cut -d, -f1
 }
 
+
+copy_mangohud_config(){
+    readarray -td"," arr < <(printf "%s" "$(grep -E "^wheel" /etc/gshadow | cut -d: -f4)")
+
+    for i in "${arr[@]}"
+    do
+        mkdir -p "/home/$i/.config/MangoHud"
+        cp "additional_resources/MangoHud.conf" "/home/$i/.config/MangoHud/"
+
+        chown -R "$i":"$i" "/home/$i/.config/MangoHud"
+    done
+}
+
+
 install_optional_pkgs(){
     colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
 
@@ -269,7 +283,9 @@ install_optional_pkgs(){
 
     if ask "Do you want to install gaming apps?";
     then
+        # https://wiki.archlinux.org/title/MangoHud
         sudo -S -i -u "$USER" yay -S "${GAMING_PKGS[@]}"
+        copy_mangohud_config
     fi
 
     if ask "Do you want to install some emulators?";
