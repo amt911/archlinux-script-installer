@@ -10,6 +10,8 @@ readonly TEXLIVE_PKGS=("texlive" "texlive-lang")
 readonly TEXLIVE_PKGS_DEPS=("biber")
 
 
+readonly LAPTOP_PKGS=("powerstat")
+
 # Sources:
 # https://github.com/lutris/docs/blob/master/WineDependencies.md#archendeavourosmanjaroother-arch-derivatives
 # https://wiki.archlinux.org/title/wine
@@ -1219,6 +1221,15 @@ laptop_extra_config(){
     echo "options snd_hda_intel model=lenovo-y530" > /etc/modprobe.d/msi_laptop.conf
 }
 
+
+install_laptop_opt_pkgs(){
+    colored_msg "Installing lapatop optional packages..." "${BRIGHT_CYAN}" "#"
+    local -r USER=$(get_sudo_user)
+    
+    sudo -S -i -u "$USER" yay -S "${LAPTOP_PKGS[@]}"
+}
+
+
 main(){
     ask_global_vars "$FALSE" "$FALSE"
 
@@ -1314,6 +1325,7 @@ main(){
             then 
                 ask "Do you want to enable laptop specific features?" && laptop_extra_config
                 ask "Do you want to enable envycontrol?" && enable_envycontrol
+                ask "Do you want to install laptop optional packages?" && install_laptop_opt_pkgs
             fi
             ;;
 
