@@ -433,11 +433,11 @@ install_xorg(){
                     install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
                     pacman -D --asdeps nvidia-utils-beta
 
-                    install_aur_package "https://aur.archlinux.org/nvidia-beta.git"
+                    install_aur_package "https://aur.archlinux.org/nvidia-beta-dkms.git"
                     install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
                 else
                     echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                    pacman --noconfirm -S nvidia lib32-nvidia-utils nvidia-settings
+                    pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
                 fi
 
                 if [ "$is_laptop" -eq "$FALSE" ];
