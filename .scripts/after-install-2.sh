@@ -293,6 +293,38 @@ install_optional_pkgs(){
     if ask "Do you want to install some emulators?";
     then
         sudo -S -i -u "$USER" yay -S "${EMU_PKGS[@]}"
+
+        local is_done="$FALSE"
+
+        echo "You need to install a udev for the adapter to be working correctly for USB Passthrough on Dolphin"
+        while [ "$is_done" -eq "$FALSE" ]
+        do
+            echo "
+The following adapters are configured:
+
+1) TP-Link UB400
+"
+            echo -ne "${YELLOW}Select an option (empty for no udev rule): ${NO_COLOR}"
+            read -r option
+
+            case $option in
+                1)
+                    echo "Installing udev rule for TP-Link UB400..."
+                    cp general_scripts/50-dolphin-UB400.rules /etc/udev/rules.d/
+                    udevadm trigger
+                    udevadm control --reload
+                    
+                    is_done="$TRUE"
+                    ;;
+                "")
+                    echo "Not doing anything. Continuing."
+                    is_done="$TRUE"
+                    ;;
+                *)
+                    echo -e "${RED}Invalid option${NO_COLOR}"
+                    ;;
+            esac
+        done
     fi
 }
 
