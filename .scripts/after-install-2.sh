@@ -462,6 +462,9 @@ install_xorg(){
                 then
                     echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
 
+                    # First install the linux headers and dkms so it can build the packages for the current kernel
+                    pacman -S linux-headers dkms
+
                     install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
                     pacman -D --asdeps nvidia-utils-beta
 
