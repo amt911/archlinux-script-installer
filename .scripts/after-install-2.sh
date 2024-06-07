@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "ufw" "gufw" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -398,23 +398,23 @@ MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
     done
 }
 
-# https://wiki.archlinux.org/title/Uncomplicated_Firewall
-# https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
+# https://wiki.archlinux.org/title/Firewalld
+# https://serverfault.com/questions/485400/what-exactly-do-limit-1-s-and-limit-burst-mean-in-iptables-rules
 install_firewall(){
     colored_msg "Installing firewall..." "${BRIGHT_CYAN}" "#"
 
-    pacman --noconfirm -S ufw gufw
+    pacman --noconfirm -S firewalld
 
-    echo -e "${BRIGHT_CYAN}Enabling and starting ufw.service...${NO_COLOR}"
-    systemctl enable ufw.service
-    systemctl start ufw.service
+    echo -e "${BRIGHT_CYAN}Enabling and starting firewalld.service...${NO_COLOR}"
+    systemctl enable --now firewalld.service
 
-    ufw enable
+    firewall-cmd --permanent --zone=public --remove-service=ssh
 
-    # https://wiki.archlinux.org/title/Uncomplicated_Firewall#Basic_configuration
-    ufw default deny
-    ufw allow from 192.168.0.0/24
-    ufw limit ssh
+    # https://serverfault.com/questions/485400/what-exactly-do-limit-1-s-and-limit-burst-mean-in-iptables-rules
+    # We limit ssh connections to just 2 per minute before it kicks in the default 5 connections (and then it blocks the source)
+    firewall-cmd --permanent --zone=public --add-rich-rule 'rule service name="ssh" accept limit value="2/m"'
+
+    firewall-cmd --reload
 }
 
 # Install an aur package with the url passed as argument
