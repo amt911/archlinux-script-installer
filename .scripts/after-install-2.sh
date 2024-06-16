@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -458,12 +458,13 @@ install_xorg(){
                 ;;
             
             "nvidia")
+                pacman -S linux-headers dkms
+                
                 if ask "Do you want to install NVIDIA beta packages?";
                 then
                     echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
 
                     # First install the linux headers and dkms so it can build the packages for the current kernel
-                    pacman -S linux-headers dkms
 
                     install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
                     pacman -D --asdeps nvidia-utils-beta
