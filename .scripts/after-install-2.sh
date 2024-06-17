@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -249,6 +249,18 @@ copy_mangohud_config(){
 }
 
 
+disable_update_msg_discord(){
+    readarray -td"," arr < <(printf "%s" "$(grep -E "^wheel" /etc/gshadow | cut -d: -f4)")
+
+    for i in "${arr[@]}"
+    do
+        mkdir -p "/home/$i/.config/discord"
+        cp "additional_resources/discord/settings.json" "/home/$i/.config/discord/"
+
+        chown -R "$i":"$i" "/home/$i/.config/discord"
+    done
+}
+
 install_optional_pkgs(){
     colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
 
@@ -257,6 +269,8 @@ install_optional_pkgs(){
     [ "$root_fs" = "btrfs" ] && OPTIONAL_PKGS=( "${OPTIONAL_PKGS[@]}" "${OPTIONAL_PKGS_BTRFS[@]}")
 
     sudo -S -i -u "$USER" yay -S "${OPTIONAL_PKGS[@]}"
+
+    disable_update_msg_discord
 
     if ask "Do you want to install LibreOffice?";
     then
