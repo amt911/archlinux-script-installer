@@ -523,7 +523,7 @@ install_kde(){
 
     if ask "Do you want to install printer optional packages? (only if you intend to install CUPS)";
     then
-        pacman --noconfirm -S system-config-printer
+        pacman --noconfirm --asdeps -S system-config-printer
     fi
 
     systemctl enable sddm.service
@@ -535,7 +535,7 @@ install_gnome(){
     colored_msg "Installing GNOME..." "${BRIGHT_CYAN}" "#"
     # if ask "Do you want to install printer optional packages? (only if you intend to install CUPS)";
     # then
-    #     pacman --noconfirm -S system-config-printer
+    #     pacman --noconfirm --asdeps -S system-config-printer
     # fi    
     add_global_var_to_file "is_kde" "$FALSE" "$VAR_FILE_LOC"
     echo "WIP"
