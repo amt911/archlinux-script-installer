@@ -615,7 +615,8 @@ install_kvm(){
 
     # IOMMU
     echo -e "${BRIGHT_CYAN}Setting up IOMMU...${NO_COLOR}"
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
+    # Commented out since it is advised against using it
+    # add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
 
     if [ "$is_intel" -eq "$TRUE" ];
     then
