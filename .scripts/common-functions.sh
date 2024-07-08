@@ -150,8 +150,9 @@ add_sentence_end_quote(){
 
 # $1: Option (Or options)
 # $2: File location
+# $3: Do it inline? (Defaults to true)
 add_option_grub(){
-    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    if [ "$#" -lt "2" ] || [ ! -f "$2" ];
     then
         echo -e "${RED}Error. Missing arguments. Exiting...${NO_COLOR}"
         exit 1
@@ -159,25 +160,40 @@ add_option_grub(){
 
     local -r OPTION="$1"
     local -r FILE_LOC="$2"
+    local -r INLINE=${3:-$TRUE}
 
-    # awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{split($2, arr, /"/); $2="\""arr[2]" "OPTION"\""};1' "$FILE_LOC" 
-    # > /dev/shm/aux
+    if [ "$INLINE" -eq "$TRUE" ];
+    then
+        awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{
+        for(i=2; i<=NF; i++){
+            if(i != NF)
+                msg=msg""$i"="
+            else
+                msg=msg""$i
+        }
 
-    awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{
-    for(i=2; i<=NF; i++){
-        if(i != NF)
-            msg=msg""$i"="
-        else
-            msg=msg""$i
-    }
+        split(msg, arr, /"/); 
+        $0="GRUB_CMDLINE_LINUX=\""arr[2]" "OPTION"\""
 
-    split(msg, arr, /"/); 
-    $0="GRUB_CMDLINE_LINUX=\""arr[2]" "OPTION"\""
+        # print $0
+        };1' "$FILE_LOC" > /dev/shm/aux
 
-    # print $0
-    };1' "$FILE_LOC" > /dev/shm/aux
+        mv /dev/shm/aux "$FILE_LOC"
+    else
+        awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{
+        for(i=2; i<=NF; i++){
+            if(i != NF)
+                msg=msg""$i"="
+            else
+                msg=msg""$i
+        }
 
-    mv /dev/shm/aux "$FILE_LOC"
+        split(msg, arr, /"/); 
+        $0="GRUB_CMDLINE_LINUX=\""arr[2]" "OPTION"\""
+
+        # print $0
+        };1' "$FILE_LOC"
+    fi
 }
 
 # $1: Pattern to find
@@ -200,9 +216,10 @@ add_sentence_2(){
 
 # $1: Option (or options)
 # $2: File location
+# $3: Do it inline? (Defaults to true)
 add_option_sd_boot(){
     
-    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    if [ "$#" -lt "2" ] || [ ! -f "$2" ];
     then
         echo -e "${RED}Error. Missing arguments. Exiting...${NO_COLOR}"
         exit 1
@@ -210,6 +227,7 @@ add_option_sd_boot(){
 
     local -r OPTION="$1"
     local -r FILE_LOC="$2"
+    local -r INLINE=${3:-$TRUE}
 
     # Check wether there is the "options" word inside the configuration file
     if ! grep "options" "$FILE_LOC" > /dev/null;
@@ -221,10 +239,15 @@ add_option_sd_boot(){
         echo -e "${first_char}options" >> "$FILE_LOC"
     fi
 
-    # Add the new option
-    awk -vOPTION="$OPTION" '/^options/{$0=$0" "OPTION};1' "$FILE_LOC" > /dev/shm/aux
+    if [ "$INLINE" -eq "$TRUE" ];
+    then
+        # Add the new option
+        awk -vOPTION="$OPTION" '/^options/{$0=$0" "OPTION};1' "$FILE_LOC" > /dev/shm/aux
 
-    mv /dev/shm/aux "$FILE_LOC"
+        mv /dev/shm/aux "$FILE_LOC"
+    else
+        awk -vOPTION="$OPTION" '/^options/{$0=$0" "OPTION};1' "$FILE_LOC"    
+    fi
 }
 
 # add_option_sd_boot "rd.luks.key= master of puppets/dev/mapper/sdf" "tests/arch.conf"
@@ -232,8 +255,9 @@ add_option_sd_boot(){
 # Merges both functions for GRUB and systemd-boot.
 # $1: Option (or options)
 # #2: File location
+# $3: Do it inline? (Defaults to true)
 add_option_bootloader(){
-    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    if [ "$#" -lt "2" ] || [ ! -f "$2" ];
     then
         echo -e "${ERROR}Error. Missing arguments or configuration file does not exist. Exiting...${NO_COLOR}"
         exit 1
@@ -241,14 +265,15 @@ add_option_bootloader(){
 
     local -r OPTION="$1"
     local -r FILE_LOC="$2"
+    local -r INLINE=${3:-$TRUE}
 
     case $bootloader in
         "grub")
-            add_option_grub "$OPTION" "$FILE_LOC"
+            add_option_grub "$OPTION" "$FILE_LOC" "$INLINE"
             ;;
 
         "sd-boot")
-            add_option_sd_boot "$OPTION" "$FILE_LOC"
+            add_option_sd_boot "$OPTION" "$FILE_LOC" "$INLINE"
             ;;
         *)
             echo -e "${RED}Unknown error. Exiting...${NO_COLOR}"
@@ -259,19 +284,34 @@ add_option_bootloader(){
 
 
 
+# IMPROVE
 # $1: Option (or options, but ending without comma)
 # $2: File location
-# $3 ($TRUE/$FALSE): Do it inline?
+# $3 ($TRUE/$FALSE): Do it inline? (Degaults to true)
 add_option_inside_luks_options(){
     local -r OPTION="$1"
     local -r FILE="$2"
-    local -r IS_INLINE="$3"
+    local -r IS_INLINE=${3:-$TRUE}
+    local boot_line="GRUB_CMDLINE_LINUX="
+
+    [ "$bootloader" = "sd-boot" ] && boot_line="options "
 
     if [ "$IS_INLINE" -eq "$TRUE" ];
     then
-        sed -i "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" "$FILE"
+        # It checks wether rd.luks.options exists to create a new entry
+        if ! grep "rd.luks.options" "$FILE" > /dev/null;
+        then
+            add_option_bootloader "rd.luks.options=$OPTION" "$FILE" "$IS_INLINE"
+        else
+            sed -i "/^$boot_line/s/rd.luks.options=/rd.luks.options=$OPTION,/" "$FILE"
+        fi
     else
-        sed "/^GRUB_CMDLINE_LINUX=/s/rd.luks.options=/rd.luks.options=$OPTION,/" "$FILE"
+        if ! grep "rd.luks.options" "$FILE" > /dev/null;
+        then
+            add_option_bootloader "rd.luks.options=$OPTION" "$FILE" "$IS_INLINE"
+        else    
+            sed "/^$boot_line/s/rd.luks.options=/rd.luks.options=$OPTION,/" "$FILE"
+        fi
     fi
 }
 
@@ -347,12 +387,6 @@ fi
             awk 'BEGIN{OFS=FS="="} /^'"$VAR_NAME"'=/{$NF="('"${VALUE[*]}"')"};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
         fi
     else
-        # # Checks if file ends in newline to avoid putting the new variable on the same line
-        # local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
-        # local first_char=""
-
-        # [ "$ENDS_NEWLINE" -eq "0" ] && first_char="\n"
-
         local first_char=""
 
         needs_to_append_newline "$FILE_LOC" && first_char="\n"
@@ -708,7 +742,11 @@ ask_global_var(){
 }
 
 ask_global_vars "$FALSE" "$FALSE" "tests/vars.sh"
-# add_option_bootloader "opcion-random-sd-boot=/RNG/RNG2" "tests/arch.conf"
-add_option_bootloader "opcion-random-grub=/RNG/RNG333" "tests/grub"
-add_option_bootloader "root=/dev/mapper/asd" "tests/grub"
-add_option_bootloader "root=discard,descarado" "tests/grub"
+# add_option_bootloader "opcion-random-grub=/RNG/RNG333" "tests/grub"
+# add_option_bootloader "root=/dev/mapper/asd" "tests/grub"
+# add_option_bootloader "root=discard,descarado" "tests/grub"
+# $1: Option (or options, but ending without comma)
+# $2: File location
+# $3 ($TRUE/$FALSE): Do it inline?
+# add_option_inside_luks_options "caca,popo" "tests/arch.conf" "$TRUE"
+# add_option_inside_luks_options "caca,popo" "tests/grub" "$TRUE"

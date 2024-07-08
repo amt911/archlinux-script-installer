@@ -561,12 +561,11 @@ install_bootloader(){
         then
             local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-            add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
-
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub"
         fi
 
         # If the filesystem is btrfs, we add the necessary rootflags
-        [ "$root_fs" = "btrfs" ] && add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+        [ "$root_fs" = "btrfs" ] && add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub"
 
         arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
         arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg

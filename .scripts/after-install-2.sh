@@ -30,7 +30,6 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # TODO
 # ROOTLESS SDDM UNDER WAYLAND
 # KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
-# add_sentence_end_quote y el otro. Junstarlos en uno solo.
 # Asegurar que al menos un usuario esta en el grupo wheel
 
 # $1 (optional): Message to be displayed.
@@ -58,10 +57,16 @@ redo_grub(){
 # https://wiki.archlinux.org/title/Keyboard_shortcuts#Kernel_(SysRq)
 enable_reisub(){
     colored_msg "Enabling REISUB..." "${BRIGHT_CYAN}" "#"
+    
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "sysrq_always_enabled=1" "/etc/default/grub"
+        redo_grub "$FALSE"
+    else
+        add_option_bootloader "sysrq_always_enabled=1" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "sysrq_always_enabled=1" "/boot/loader/entries/arch-fallback.conf"
+    fi
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/etc/default/grub" "$TRUE" "$TRUE"
-
-    redo_grub "$FALSE"
 }
 
 # https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
@@ -365,8 +370,16 @@ install_cpu_scaler(){
     if [ "$is_intel" -eq "$FALSE" ];
     then
         echo -e "${BRIGHT_CYAN}Adding AMD P-State driver...${NO_COLOR}"
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE" "$TRUE"
-        redo_grub "$FALSE"
+
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "amd_pstate=active" "/etc/default/grub"
+            redo_grub "$FALSE"
+        else
+            add_option_bootloader "amd_pstate=active" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "amd_pstate=active" "/boot/loader/entries/arch-fallback.conf"
+        fi
+        
     fi
 }
 
@@ -626,10 +639,16 @@ install_kvm(){
 
     if [ "$is_intel" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE" "$TRUE"
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "intel_iommu=on" "/etc/default/grub"
+            redo_grub
+        else
+            add_option_bootloader "intel_iommu=on" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "intel_iommu=on" "/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
 
-    redo_grub
 
     # Libvirt installation
     echo -e "${BRIGHT_CYAN}Installing libvirt...${NO_COLOR}"
@@ -968,21 +987,41 @@ Select one of the following options:
     then
         # If the entry exists, we add a new parameter inside
         echo -e "${BRIGHT_CYAN}The entry exists. Adding new option.${NO_COLOR}"
-        add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
+
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
+        else
+            add_option_inside_luks_options "keyfile-timeout=10s" "/boot/loader/entries/arch.conf" "$TRUE"            
+            add_option_inside_luks_options "keyfile-timeout=10s" "/boot/loader/entries/arch-fallback.conf" "$TRUE"
+        fi
     else
         # If the entry does not exist, we add rd.luks.options directly.
         echo -e "${BRIGHT_CYAN}The entry does not exist. Adding new option.${NO_COLOR}"
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
+
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/etc/default/grub"
+        else
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
 
 #   Now we need to add the key UUID to the kernel parameter.
     local -r PEN_UUID=$(blkid -s UUID -o value "$part")
     local -r ROOT_UUID=$(blkid -s UUID -o value "$sys_part")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub"
 
-    # We regenerate the grub config
-    redo_grub
+        # We regenerate the grub config
+        redo_grub
+    else
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/boot/loader/entries/arch-fallback.conf"
+    fi
 
     # Finally, unmount the pendrive
     umount /mnt
@@ -1240,9 +1279,13 @@ install_plymouth(){
     mkinitcpio -P
 
 
-
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " splash" "/etc/default/grub" "$TRUE" "$TRUE"
-    redo_grub "$FALSE"
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "splash" "/etc/default/grub"
+        redo_grub "$FALSE"
+    else
+        add_option_bootloader "splash"
+    fi
 }
 
 
