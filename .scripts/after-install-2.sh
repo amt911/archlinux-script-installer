@@ -74,7 +74,9 @@ enable_trim(){
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
+        # add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
+        # Commented out since the above configuration is recommended for LUKS1/plain devices
+        cryptsetup --allow-discards --persistent refresh "$DM_NAME"
         redo_grub "$FALSE"
     fi
 }
@@ -194,7 +196,7 @@ prepare_for_aur(){
 
     # https://wiki.archlinux.org/title/makepkg#Parallel_compilation
     # Enable multi-core compilation
-    awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"-j$(nproc)\""}};1' /etc/makepkg.conf > /etc/makepkg.tmp && mv /etc/makepkg.tmp /etc/makepkg.conf
+    awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"--jobs=$(nproc)\""}};1' /etc/makepkg.conf > /etc/makepkg.tmp && mv /etc/makepkg.tmp /etc/makepkg.conf
 
     echo -e "${BRIGHT_CYAN}Check changes: ${NO_COLOR}"
     grep "MAKEFLAGS=" /etc/makepkg.conf
@@ -493,6 +495,10 @@ install_xorg(){
                 if [ "$is_laptop" -eq "$FALSE" ];
                 then
                     # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+                    # https://superuser.com/questions/577307/how-to-get-a-list-of-active-drivers-that-are-statically-built-into-the-linux-ker
+                    # Se pueden poner en modprobe, ya que no son los compilados en el kernel, sino que son externos y por tanto se pueden modificar con el archivo. En el enlace siguiente lo pone.
+                    # https://wiki.archlinux.org/title/Kernel_module#Using_kernel_command_line
+                    
                     echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
                     echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
                     # To check if it is working: 
@@ -945,6 +951,9 @@ Select one of the following options:
 
     # Creating the keyfile
     dd bs=512 count=4 if=/dev/random of="/mnt/$keyfile_name" iflag=fullblock
+    # Denying access to other users but root
+    chmod 600 "/mnt/$keyfile_name"
+    
     cryptsetup luksAddKey "$sys_part" "/mnt/$keyfile_name"
 
     # Adding the modules on mkinitcpio, only if they are not already there
