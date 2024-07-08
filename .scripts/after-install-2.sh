@@ -1284,7 +1284,8 @@ install_plymouth(){
         add_option_bootloader "splash" "/etc/default/grub"
         redo_grub "$FALSE"
     else
-        add_option_bootloader "splash"
+        add_option_bootloader "splash" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "splash" "/boot/loader/entries/arch-fallback.conf"
     fi
 }
 

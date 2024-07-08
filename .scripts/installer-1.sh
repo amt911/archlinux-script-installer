@@ -561,7 +561,7 @@ install_bootloader(){
         then
             local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/etc/default/grub"
         fi
 
         # If the filesystem is btrfs, we add the necessary rootflags
@@ -583,19 +583,19 @@ install_bootloader(){
         then
             local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-            add_option_sd_boot "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch.conf"
-            add_option_sd_boot "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
 
         else
-            add_option_sd_boot "root=/dev/${DM_NAME}" "/boot/loader/entries/arch.conf"
-            add_option_sd_boot "root=/dev/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "root=/dev/${DM_NAME}" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "root=/dev/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
         fi
 
         # If the filesystem is btrfs, we add the necessary rootflags
         if [ "$root_fs" = "btrfs" ];
         then
-            add_option_sd_boot "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch.conf"
-            add_option_sd_boot "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch-fallback.conf"
         fi
     fi
 }
