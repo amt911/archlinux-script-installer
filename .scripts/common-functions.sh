@@ -23,10 +23,11 @@ readonly FALSE=1
 readonly VAR_FILENAME="vars.sh"
 readonly VAR_FILE_LOC="/root/.scripts/$VAR_FILENAME"
 
-readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde" "root_fs")
-readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask" "root_fs")
-readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Used root filesystem: ")
-readonly VARS_QUESTIONS_LIVE=("Do you want to create swap?" "Do you want to use zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Do you want to encrypt your system?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Please type desired filesystem for root partition: ")
+readonly GLOBAL_VARS_NAME=("has_swap" "is_zram" "swap_part" "boot_part" "root_part" "has_encryption" "DM_NAME" "machine_name" "is_intel" "is_laptop" "gpu_type" "log_step" "is_kde" "root_fs" "bootloader")
+readonly VARS_TYPE=("ask" "ask" "type" "type" "type" "ask" "DM_NAME" "MACHINE_NAME" "ask" "ask" "gpu" "log_step" "ask" "root_fs" "bootloader")
+readonly VARS_QUESTIONS=("Does it have a swap?" "Is the system using zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Does the system have encryption?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Used root filesystem: " "Please choose your desired bootloader: ")
+readonly VARS_QUESTIONS_LIVE=("Do you want to create swap?" "Do you want to use zram?" "Please type swap partition: " "Please type boot partition: " "Please type root partition: " "Do you want to encrypt your system?" "PLACEHOLDER" "PLACEHOLDER" "Is the system using an Intel CPU?" "Is the system a laptop?" "Please type dedicated GPU (amd/nvidia/intel): " "LOG STEP" "Is this machine using KDE?" "Please type desired filesystem for root partition: " "Please choose your desired bootloader: ")
+
 # GLOBAL VARS
 # 
 # tty_layout
@@ -44,6 +45,7 @@ readonly VARS_QUESTIONS_LIVE=("Do you want to create swap?" "Do you want to use 
 # log_step="number"
 # is_kde
 # root_fs
+# bootloader=grub/sd-boot
 
 
 # Asks for something to do in this script.
@@ -98,6 +100,28 @@ colored_msg(){
     printf "%b\n\n" "${COLOR}${MSG}${NO_COLOR}"
 }
 
+
+# $1: File location
+# return: true if a newline is needed, false otherwise.
+needs_to_append_newline(){
+    if [ "$#" -lt "1" ] || [ ! -f "$1" ];
+    then
+        echo -e "${RED}Error. Missing argument or file does not exist. Exiting..."
+        exit 1
+    fi
+
+    local -r FILE_LOC="$1"
+
+    # Checks if file ends in newline to avoid putting the new variable on the same line
+    local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
+    local first_char="$FALSE"
+
+    [ "$ENDS_NEWLINE" -eq "0" ] && first_char="$TRUE"
+
+    return "$first_char"
+}
+
+
 # $1: Pattern to find
 # $2: Text to add
 # $3: filename
@@ -122,7 +146,38 @@ add_sentence_end_quote(){
     else
         sed "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
     fi
+}
 
+# $1: Option (Or options)
+# $2: File location
+add_option_grub(){
+    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    then
+        echo -e "${RED}Error. Missing arguments. Exiting...${NO_COLOR}"
+        exit 1
+    fi
+
+    local -r OPTION="$1"
+    local -r FILE_LOC="$2"
+
+    # awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{split($2, arr, /"/); $2="\""arr[2]" "OPTION"\""};1' "$FILE_LOC" 
+    # > /dev/shm/aux
+
+    awk -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} /^GRUB_CMDLINE_LINUX=/{
+    for(i=2; i<=NF; i++){
+        if(i != NF)
+            msg=msg""$i"="
+        else
+            msg=msg""$i
+    }
+
+    split(msg, arr, /"/); 
+    $0="GRUB_CMDLINE_LINUX=\""arr[2]" "OPTION"\""
+
+    # print $0
+    };1' "$FILE_LOC" > /dev/shm/aux
+
+    mv /dev/shm/aux "$FILE_LOC"
 }
 
 # $1: Pattern to find
@@ -143,6 +198,67 @@ add_sentence_2(){
     sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
 }
 
+# $1: Option (or options)
+# $2: File location
+add_option_sd_boot(){
+    
+    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    then
+        echo -e "${RED}Error. Missing arguments. Exiting...${NO_COLOR}"
+        exit 1
+    fi
+
+    local -r OPTION="$1"
+    local -r FILE_LOC="$2"
+
+    # Check wether there is the "options" word inside the configuration file
+    if ! grep "options" "$FILE_LOC" > /dev/null;
+    then
+        local first_char=""
+
+        needs_to_append_newline "$FILE_LOC" && first_char="\n"
+
+        echo -e "${first_char}options" >> "$FILE_LOC"
+    fi
+
+    # Add the new option
+    awk -vOPTION="$OPTION" '/^options/{$0=$0" "OPTION};1' "$FILE_LOC" > /dev/shm/aux
+
+    mv /dev/shm/aux "$FILE_LOC"
+}
+
+# add_option_sd_boot "rd.luks.key= master of puppets/dev/mapper/sdf" "tests/arch.conf"
+
+# Merges both functions for GRUB and systemd-boot.
+# $1: Option (or options)
+# #2: File location
+add_option_bootloader(){
+    if [ "$#" -ne "2" ] || [ ! -f "$2" ];
+    then
+        echo -e "${ERROR}Error. Missing arguments or configuration file does not exist. Exiting...${NO_COLOR}"
+        exit 1
+    fi
+
+    local -r OPTION="$1"
+    local -r FILE_LOC="$2"
+
+    case $bootloader in
+        "grub")
+            add_option_grub "$OPTION" "$FILE_LOC"
+            ;;
+
+        "sd-boot")
+            add_option_sd_boot "$OPTION" "$FILE_LOC"
+            ;;
+        *)
+            echo -e "${RED}Unknown error. Exiting...${NO_COLOR}"
+            exit 1
+            ;;
+    esac
+}
+
+
+
 # $1: Option (or options, but ending without comma)
 # $2: File location
 # $3 ($TRUE/$FALSE): Do it inline?
@@ -161,11 +277,34 @@ add_option_inside_luks_options(){
 
 # It currently works only for normal vars, NOT ARRAYS!.
 # 
-# $1: Var name
-# $2: Value
+# $1 (true/false): Is the value array elements?
+# $2: Variable name
+# $3: Value(s)
+# Note: If the values are from an array, separate them using double quotes
 declare_global_var(){
-    declare -g "$1"="$2"
+    local -r IS_ARRAY="$1"
+    local -r NAME=$2
+
+    if [ "$IS_ARRAY" -eq "$FALSE" ];
+    then
+        declare -g "$NAME"="$3"
+        source <(echo "$NAME=$3")
+    else
+        shift 2
+        # source <(echo "$NAME=( \"${@//\"/\\\"}\" )")    
+        local arr_aux=()
+
+        for i in "$@"
+        do
+            arr_aux+=("\"$i\"")
+        done
+
+        echo "${arr_aux[*]}"
+
+        source <(echo "$NAME=( ${arr_aux[*]} )")
+    fi
 }
+
 
 # Adds a variable and its value to a file.
 # 
@@ -208,11 +347,15 @@ fi
             awk 'BEGIN{OFS=FS="="} /^'"$VAR_NAME"'=/{$NF="('"${VALUE[*]}"')"};1' "$FILE_LOC" > "${FILE_LOC}.tmp" && mv "${FILE_LOC}.tmp" "$FILE_LOC"
         fi
     else
-        # Checks if file ends in newline to avoid putting the new variable on the same line
-        local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
+        # # Checks if file ends in newline to avoid putting the new variable on the same line
+        # local -r ENDS_NEWLINE="$(tail -c1 "$FILE_LOC" | wc -l)"
+        # local first_char=""
+
+        # [ "$ENDS_NEWLINE" -eq "0" ] && first_char="\n"
+
         local first_char=""
 
-        [ "$ENDS_NEWLINE" -eq "0" ] && first_char="\n"
+        needs_to_append_newline "$FILE_LOC" && first_char="\n"
 
         if [ "$is_array" -eq "$FALSE" ];
         then
@@ -400,6 +543,38 @@ ask_global_var_by_index(){
                 res="$tmp"
             ;;
 
+            "bootloader")
+                echo "Available bootloaders:
+1) GRUB
+2) systemd-boot"
+                while [ "$is_done" -eq "$FALSE" ]
+                do
+                    echo -n "${FINAL_QUESTIONS[$INDEX]}"
+                    read -r tmp
+
+                    case $tmp in
+                        [Gg][Rr][Uu][Bb]|1)
+                            tmp="grub"
+                            ;;
+
+                        [Ss][Yy][Ss][Tt][Ee][Mm][Dd]-[Bb][Oo][Oo][Tt]|2)
+                            tmp="sd-boot"
+                            ;;
+                        *)
+                            tmp="unknown"
+                            ;;
+                    esac
+
+                    # Only enter to confirmation stage if the option exists.
+                    if [ "$tmp" != "unknown" ];
+                    then
+                        ask "You have selected $tmp. Is that correct?"
+                        is_done="$?"
+                    fi
+                done
+                res="$tmp"
+            ;;            
+
             "gpu")
                 aux_arr=()
                 while [ "$is_done" -eq "$FALSE" ]
@@ -464,11 +639,16 @@ ask_global_var_by_index(){
         add_global_var_to_file "${GLOBAL_VARS_NAME[$INDEX]}" "$res" "$var_file" "$res_bool"
 
     else
-        # En caso de existir en el archivo, se obtiene del mismo para aniadirlo mas tarde.
+        # En caso de existir en el archivo, se obtiene del mismo para añadirlo mas tarde.
         res="$(get_var_value_index "$INDEX" "$var_file")"
     fi
 
-    declare_global_var "${GLOBAL_VARS_NAME[$INDEX]}" "$res"
+    if [ "$res_bool" -eq "$TRUE" ];
+    then
+        declare_global_var "$res_bool" "${GLOBAL_VARS_NAME[$INDEX]}" "${res[@]}"
+    else
+        declare_global_var "$res_bool" "${GLOBAL_VARS_NAME[$INDEX]}" "$res"
+    fi
 
     return "$TRUE"
 }
@@ -509,6 +689,7 @@ ask_global_vars(){
     unset i
 }
 
+
 # Asks about the value of the global var with the name passed as argument
 # and sets it inside the script and inside a file.
 # 
@@ -525,3 +706,9 @@ ask_global_var(){
 
     ask_global_var_by_index "$INDEX" "$Q_TYPE" "$override" "$var_file"
 }
+
+ask_global_vars "$FALSE" "$FALSE" "tests/vars.sh"
+# add_option_bootloader "opcion-random-sd-boot=/RNG/RNG2" "tests/arch.conf"
+add_option_bootloader "opcion-random-grub=/RNG/RNG333" "tests/grub"
+add_option_bootloader "root=/dev/mapper/asd" "tests/grub"
+add_option_bootloader "root=discard,descarado" "tests/grub"

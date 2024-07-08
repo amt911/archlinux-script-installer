@@ -326,7 +326,7 @@ The following adapters are configured:
             case $option in
                 1)
                     echo "Installing udev rule for TP-Link UB400..."
-                    cp general_scripts/50-dolphin-UB400.rules /etc/udev/rules.d/
+                    cp additional_resources/udev_rules/50-dolphin-UB400.rules /etc/udev/rules.d/
                     udevadm trigger
                     udevadm control --reload
                     
@@ -1094,7 +1094,7 @@ sync_time_dual_boot(){
     then
         echo -e "${GREEN}IMPORTANT!!${NO_COLOR} You need to complete the configuration by going to the following URL: ${BRIGHT_CYAN}https://wiki.archlinux.org/title/System_time#UTC_in_Microsoft_Windows${NO_COLOR}
 
-In any case, you can use the *.reg file located in .scripts/win64 to install it on Windows."
+In any case, you can use the *.reg file located in .scripts/additional_resources/win64 to install it on Windows."
     fi
 
     echo -e "${BRIGHT_CYAN}Enabling NTP...${NO_COLOR}"
@@ -1132,7 +1132,7 @@ Options:
         case $selection in
             "1")
                 echo -e "${BRIGHT_CYAN}Copying profile...${NO_COLOR}"
-                cp CoolerControl/Torre-AMD/* /etc/coolercontrol
+                cp additional_resources/CoolerControl/Torre-AMD/* /etc/coolercontrol
                 systemctl restart coolercontrold
                 is_done="$TRUE"
                 ;;
@@ -1280,7 +1280,7 @@ enable_envycontrol(){
     # envycontrol -s integrated
 
     echo -e "${BRIGHT_CYAN}Adding temporary configuration...${NO_COLOR}"
-    cp "laptop_scripts/laptop_prime.sh" "/etc/profile.d"
+    cp "additional_resources/laptop_scripts/laptop_prime.sh" "/etc/profile.d"
 }
 
 

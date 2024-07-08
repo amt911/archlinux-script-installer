@@ -540,27 +540,65 @@ install_microcode(){
 
 # https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader
 # https://wiki.archlinux.org/title/GRUB
+# https://wiki.archlinux.org/title/Systemd-boot
+# https://wiki.archlinux.org/title/Kernel_parameters#Parameter_list
+# https://wiki.archlinux.org/title/Btrfs#Mounting_subvolume_as_root
 install_bootloader(){
     colored_msg "Bootloader installation..." "${BRIGHT_CYAN}" "#"
 
-    # Install bootloader package
-    arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
+    ask_global_var "bootloader" "$TRUE" "$TRUE"
 
-    # Configure GRUB
-    sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
-
-    # Add the following lines ONLY if root partition is encrypted
-    if [ "$has_encryption" -eq "$TRUE" ];
+    if [ "$bootloader" = "grub" ];
     then
-        local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+        # Install bootloader package
+        arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
 
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+        # Configure GRUB
+        sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
-        [ "$root_fs" = "btrfs" ] && add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"        
+        # Add the following lines ONLY if root partition is encrypted
+        if [ "$has_encryption" -eq "$TRUE" ];
+        then
+            local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+
+            add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+
+        fi
+
+        # If the filesystem is btrfs, we add the necessary rootflags
+        [ "$root_fs" = "btrfs" ] && add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+
+        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+        arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+    else
+        # Install bootloader to NVRAM
+        arch-chroot /mnt bootctl install
+
+        # Copying loader and entries configuration
+        cp additional_resources/systemd-boot/loader.conf /boot/loader
+        cp additional_resources/systemd-boot/arch.conf /boot/loader/entries
+        cp additional_resources/systemd-boot/arch-fallback.conf /boot/loader/entries
+
+        if [ "$has_encryption" -eq "$TRUE" ];
+        then
+            local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+
+            add_option_sd_boot "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch.conf"
+            add_option_sd_boot "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+
+        else
+            add_option_sd_boot "root=/dev/${DM_NAME}" "/boot/loader/entries/arch.conf"
+            add_option_sd_boot "root=/dev/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+        fi
+
+        # If the filesystem is btrfs, we add the necessary rootflags
+        if [ "$root_fs" = "btrfs" ];
+        then
+            add_option_sd_boot "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch.conf"
+            add_option_sd_boot "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
-
-    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 # Only for debugging purposes
