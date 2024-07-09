@@ -741,12 +741,42 @@ ask_global_var(){
     ask_global_var_by_index "$INDEX" "$Q_TYPE" "$override" "$var_file"
 }
 
-ask_global_vars "$FALSE" "$FALSE" "tests/vars.sh"
+# $1: Field where the option will be inserted (MODULES, BINARIES, FILES, ...)
+# $2: Option (or options)
+# $3 (optional): File location. (Defaults to /etc/mkinitcpio.conf)
+add_option_mkinitcpio(){
+    if [ "$#" -lt "2" ];
+    then
+        echo -e "${RED}Error. Missing arguments. Exiting...${NO_COLOR}"
+        exit 1
+    fi
+
+    local -r FIELD="$1"
+    local -r OPTION="$2"
+    local FILE_LOC=${3:-"/etc/mkinitcpio.conf"}
+
+    awk -vFIELD="$FIELD" -vPATTERN="^${FIELD}=" -vOPTION="$OPTION" 'BEGIN{OFS=FS="="} $0 ~ PATTERN { 
+        split($2, aux, /\(/); 
+        split (aux[2], arr, /\)/)
+        len=split(arr[1], tmp, / /)
+
+        if(len == 0)
+            arr[1]=FIELD"=("OPTION")"
+        else
+            arr[1]=FIELD"=("arr[1]" "OPTION")"
+        
+        # print arr[1]
+        $0=arr[1]
+    };1' "$FILE_LOC" > /dev/shm/aux
+
+    mv /dev/shm/aux "$FILE_LOC"
+}
+
+# ask_global_vars "$FALSE" "$FALSE" "tests/vars.sh"
+# add_sentence_2 "^MODULES=" "caca" "tests/mkinitcpio.conf" ")"
+# add_option_mkinitcpio "MODULES" "popo 33" "tests/mkinitcpio.conf"
 # add_option_bootloader "opcion-random-grub=/RNG/RNG333" "tests/grub"
 # add_option_bootloader "root=/dev/mapper/asd" "tests/grub"
 # add_option_bootloader "root=discard,descarado" "tests/grub"
-# $1: Option (or options, but ending without comma)
-# $2: File location
-# $3 ($TRUE/$FALSE): Do it inline?
 # add_option_inside_luks_options "caca,popo" "tests/arch.conf" "$TRUE"
 # add_option_inside_luks_options "caca,popo" "tests/grub" "$TRUE"

@@ -977,7 +977,7 @@ Select one of the following options:
 
     # Adding the modules on mkinitcpio, only if they are not already there
     echo -e "${BRIGHT_CYAN}Adding $selected_module to mkinitcpio.conf...${NO_COLOR}"
-    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_option_mkinitcpio "MODULES" "$selected_module" "/etc/mkinitcpio.conf"
     mkinitcpio -P
 
 
