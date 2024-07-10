@@ -122,32 +122,6 @@ needs_to_append_newline(){
 }
 
 
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: is double quote (TRUE/FALSE)
-# $5: Do it inline?
-# note: If you need to use "/", the put it like \/
-add_sentence_end_quote(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote='\"'
-
-    [ "$4" -eq "$FALSE" ] && quote="'"
-
-    local is_inline="$5"
-
-    if [ "$is_inline" -eq "$TRUE" ];
-    then
-        sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    else
-        sed "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
-    fi
-}
-
 # $1: Option (Or options)
 # $2: File location
 # $3: Do it inline? (Defaults to true)
@@ -194,24 +168,6 @@ add_option_grub(){
         # print $0
         };1' "$FILE_LOC"
     fi
-}
-
-# $1: Pattern to find
-# $2: Text to add
-# $3: filename
-# $4: end quote
-# note: If you need to use "/", the put it like \/
-add_sentence_2(){
-    # sed "/^example=/s/\"$/ adios\"/" example
-
-    local -r PATTERN="$1"
-    local -r NEW_TEXT="$2"
-    local -r FILENAME="$3"
-    local quote="$4"
-
-
-
-    sed -i "/${PATTERN}/s/${quote}$/${NEW_TEXT}${quote}/" "${FILENAME}"
 }
 
 # $1: Option (or options)
@@ -339,7 +295,7 @@ declare_global_var(){
             arr_aux+=("\"$i\"")
         done
 
-        echo "${arr_aux[*]}"
+        # echo "${arr_aux[*]}"
 
         source <(echo "$NAME=( ${arr_aux[*]} )")
     fi

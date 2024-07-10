@@ -572,30 +572,30 @@ install_bootloader(){
 
     else
         # Install bootloader to NVRAM
-        arch-chroot /mnt bootctl install
+        arch-chroot /mnt bootctl install --esp-path=/boot
 
         # Copying loader and entries configuration
-        cp additional_resources/systemd-boot/loader.conf /boot/loader
-        cp additional_resources/systemd-boot/arch.conf /boot/loader/entries
-        cp additional_resources/systemd-boot/arch-fallback.conf /boot/loader/entries
+        cp additional_resources/systemd-boot/loader.conf /mnt/boot/loader
+        cp additional_resources/systemd-boot/arch.conf /mnt/boot/loader/entries
+        cp additional_resources/systemd-boot/arch-fallback.conf /mnt/boot/loader/entries
 
         if [ "$has_encryption" -eq "$TRUE" ];
         then
             local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch.conf"
-            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
 
         else
-            add_option_bootloader "root=/dev/${DM_NAME}" "/boot/loader/entries/arch.conf"
-            add_option_bootloader "root=/dev/${DM_NAME}" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
         fi
 
         # If the filesystem is btrfs, we add the necessary rootflags
         if [ "$root_fs" = "btrfs" ];
         then
-            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch.conf"
-            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/boot/loader/entries/arch-fallback.conf"
         fi
     fi
 }

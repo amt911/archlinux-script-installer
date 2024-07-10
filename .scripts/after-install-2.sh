@@ -82,7 +82,7 @@ enable_trim(){
         # add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
         # Commented out since the above configuration is recommended for LUKS1/plain devices
         cryptsetup --allow-discards --persistent refresh "$DM_NAME"
-        redo_grub "$FALSE"
+        # [ "redo_grub "$FALSE"
     fi
 }
 
@@ -101,49 +101,56 @@ install_shells(){
 add_users(){
     colored_msg "User creation." "${BRIGHT_CYAN}" "#"
 
-    local adduser_done="$TRUE"
+    local add_new_user="$TRUE"
     local username
     local shell
     local passwd_ok="$FALSE"
 
-    while [ "$adduser_done" -eq "$TRUE" ]
+    while [ "$add_new_user" -eq "$TRUE" ]
     do
 
-        echo -n "Username: "
+        echo -n "Username (empty to exit): "
         read -r username
 
-        echo -e "${BRIGHT_CYAN}Available shells:${NO_COLOR}"
-        cat /etc/shells
-
-        echo -ne "${BRIGHT_CYAN}Select a shell: ${NO_COLOR}"
-        read -r shell
-
-        if ask "Do you want this user to be part of the sudo (wheel) group?";
+        if [ -n "$username" ];
         then
-            useradd -m -G wheel -s "$shell" "$username"
+            echo -e "${BRIGHT_CYAN}Available shells:${NO_COLOR}"
+            cat /etc/shells
+
+            echo -ne "${BRIGHT_CYAN}Select a shell: ${NO_COLOR}"
+            read -r shell
+
+            if ask "Do you want this user to be part of the sudo (wheel) group?";
+            then
+                useradd -m -G wheel -s "$shell" "$username"
+            else
+                useradd -m -s "$shell" "$username"
+            fi
+
+            passwd_ok="$FALSE"
+
+            while [ "$passwd_ok" -eq "$FALSE" ]
+            do
+                echo -e "${BRIGHT_CYAN}Now you will be asked to type a password for the new user${NO_COLOR}"
+                passwd "$username"
+
+
+                if [ "$?" -ne "$TRUE" ];
+                then
+                    passwd_ok="$FALSE"
+                else
+                    passwd_ok="$TRUE"
+                fi
+            done
+
+
+            ask "Do you want to add another user?"
+            add_new_user="$?"
         else
-            useradd -m -s "$shell" "$username"
+            add_new_user="$FALSE"
         fi
 
-        passwd_ok="$FALSE"
-
-        while [ "$passwd_ok" -eq "$FALSE" ]
-        do
-            echo -e "${BRIGHT_CYAN}Now you will be asked to type a password for the new user${NO_COLOR}"
-            passwd "$username"
-
-
-            if [ "$?" -ne "$TRUE" ];
-            then
-                passwd_ok="$FALSE"
-            else
-                passwd_ok="$TRUE"
-            fi
-        done
-
-
-        ask "Do you want to add another user?"
-        adduser_done="$?"
+        unset username
     done
 }
 
@@ -168,7 +175,7 @@ enable_multilib(){
 
     pacman --noconfirm -Syu
     
-    redo_grub
+    [ "$bootloader" = "grub" ] && redo_grub
 
     echo -e "${BRIGHT_CYAN}Check changes:${NO_COLOR}"
     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /etc/pacman.conf
@@ -462,6 +469,10 @@ install_aur_package(){
     sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/$pkg_name\" && makepkg -sri"
 }
 
+# https://wiki.archlinux.org/title/systemd-boot#pacman_hook
+install_sd_boot_pkgs(){
+    install_aur_package "https://aur.archlinux.org/systemd-boot-pacman-hook.git"
+}
 
 # https://wiki.archlinux.org/title/Xorg
 # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
@@ -842,7 +853,7 @@ install_yay(){
     sudo -S -i -u "$USER" yay -Syu --devel
     sudo -S -i -u "$USER" yay -Y --devel --save 
 
-    redo_grub
+    [ "$bootloader" = "grub" ] && redo_grub
 }
 
 # https://wiki.archlinux.org/title/dm-crypt/Device_encryption#Keyfiles
@@ -858,7 +869,7 @@ enable_crypt_keyfile(){
     while [ "$is_done" -eq "$FALSE" ]
     do
         lsblk
-        echo -ne "${YELLOW}Select drive: ${NO_COLOR}"
+        echo -ne "${YELLOW}Select drive (not the partition): ${NO_COLOR}"
         read -r drive
 
         ask "You have selected $drive. Is that OK?"
@@ -981,6 +992,7 @@ Select one of the following options:
     mkinitcpio -P
 
 
+    # !!!
     # We need to add a new kernel parameter.
     # First, we check if rd.luks.options exists.
     if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
@@ -988,6 +1000,7 @@ Select one of the following options:
         # If the entry exists, we add a new parameter inside
         echo -e "${BRIGHT_CYAN}The entry exists. Adding new option.${NO_COLOR}"
 
+        # !!!
         if [ "$bootloader" = "grub" ];
         then
             add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
@@ -1240,6 +1253,13 @@ install_autoeq(){
     sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins
 }
 
+update_gendb(){
+    colored_msg "Updating yay development database..." "${BRIGHT_CYAN}" "#"
+    local -r USER=$(get_sudo_user)
+
+    sudo -S -i -u "$USER" yay -Y --gendb
+}
+
 install_plymouth(){
     colored_msg "Installing Plymouth..." "${BRIGHT_CYAN}" "#"
     local -r USER=$(get_sudo_user)
@@ -1353,7 +1373,7 @@ main(){
 
     case $log_step in
         0)
-            ask "Do you want to lower grub resolution to 1080p to make menu navigation faster (usually occurs on HiDPI displays)?" && lower_grub_res
+            [ "$bootloader" = "grub" ] && ask "Do you want to lower grub resolution to 1080p to make menu navigation faster (usually occurs on HiDPI displays)?" && lower_grub_res
             ask "Do you want to enable NTP?" && sync_time_dual_boot
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
@@ -1368,6 +1388,7 @@ main(){
             # ask "Do you want to install an AUR helper?" && install_yay
             prepare_for_aur
             install_yay
+            [ "$bootloader" = "sd-boot" ] && ask "Do you want to update systemd-boot every time systemd updates?" && install_sd_boot_pkgs
             ask "Do you want to install bluetooth service?" && install_bluetooth
 
             # CHECK INSTALL_XORG ON LAPTOP. 
@@ -1442,6 +1463,8 @@ main(){
                 ask "Do you want to enable envycontrol?" && enable_envycontrol
                 ask "Do you want to install laptop optional packages?" && install_laptop_opt_pkgs
             fi
+
+            update_gendb
             ;;
 
         *)
