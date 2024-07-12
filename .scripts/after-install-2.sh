@@ -1224,7 +1224,16 @@ install_wireguard(){
     echo -e "${BRIGHT_CYAN}Installing wireguard-tools...${NO_COLOR}"
     sudo -S -i -u "$USER" yay -S wireguard-tools
 
-    local is_done="$FALSE"
+    local is_done
+
+    if ask "Do you want to add a Wireguard configuration file to the system?";
+    then
+        is_done="$FALSE"
+    else
+        is_done="$TRUE"
+    fi
+
+
     local conf_filename
     while [ "$is_done" -eq "$FALSE" ]
     do
@@ -1236,12 +1245,14 @@ install_wireguard(){
             conf_filename=$(echo "$conf_file" | rev | cut -d/ -f1 | rev )
 
             ask "You have selected $conf_filename. Is that correct?" && is_done="$TRUE"
+            
+            # Only add the config file if the user has agreed
+            [ "$is_done" -eq "$TRUE" ] && nmcli connection import type wireguard file "$conf_file"
         else
             echo -e "${RED}The file does not exist${NO_COLOR}"
         fi
     done
 
-    nmcli connection import type wireguard file "$conf_file"
 }
 
 
