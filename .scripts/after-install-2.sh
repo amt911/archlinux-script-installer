@@ -318,6 +318,18 @@ install_optional_pkgs(){
         copy_mangohud_config
     fi
 
+    if ask "Do you want to install Clone Hero?";
+    then
+        if ask "Do you want to install the PTB (Public Test Build)?";
+        then
+            sudo -S -i -u "$USER" yay -S "clonehero-ptb"
+        else
+            sudo -S -i -u "$USER" yay -S "clonehero"
+        fi
+        
+        sudo -S -i -u "$USER" yay -S --asdeps "pulseaudio-alsa"
+    fi
+
     if ask "Do you want to install some emulators?";
     then
         sudo -S -i -u "$USER" yay -S "${EMU_PKGS[@]}"
