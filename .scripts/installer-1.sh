@@ -327,13 +327,58 @@ generate_locales(){
     done
 
     # Uncomment selected locales
-    # sed -i "s/#tres cuatro cinco/nano 33/g" example
     for i in "${selected_locales[@]}"
     do
         echo -e "${BRIGHT_CYAN}Adding ${i}...${NO_COLOR}"
         sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
     done
     unset i
+
+    # Generate the locales
+    echo -e "${BRIGHT_CYAN}Generating locales...${NO_COLOR}"
+    arch-chroot /mnt locale-gen
+
+    # Create locale.conf file with the first locale
+    # It should show all selected locales and should prompt the user to select one
+    is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        # Lists available locales
+        echo -e "${BRIGHT_CYAN}These are the available locales:${NO_COLOR}"
+
+        counter=1
+        for i in "${selected_locales[@]}"
+        do
+            echo "$counter.- $i"
+
+            ((counter++))
+        done
+        unset i
+
+        echo -ne "${YELLOW}Please select an option (only a number): ${NO_COLOR}"
+        read -r locale
+
+        # Checks if the selected value is a number
+        re='^[0-9]+$'
+        if [[ $locale =~ $re ]] && [ "$locale" -gt "0" ] && [ "$locale" -le "${#selected_locales[@]}" ]; 
+        then
+            if ask "You have selected $locale. Is that OK?";
+            then
+                # Getting the desired index (starts at 0) and the desired locale without the end
+                locale_index=$((locale - 1))
+                locale=$(echo "${selected_locales[locale_index]}" | cut -d" " -f1)
+
+                echo -e "${BRIGHT_CYAN}Adding $locale...${NO_COLOR}"
+                echo "LANG=$locale" > /mnt/etc/locale.conf
+
+                is_done="$TRUE"
+            fi
+        else
+            echo -e "${RED}Error: The selected option is not a number or is not in range.${NO_COLOR}"
+            is_done="$FALSE"
+        fi
+    done
 }
 
 write_keymap(){

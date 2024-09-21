@@ -1,7 +1,7 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
-readonly OPTIONAL_PKGS_BTRFS=("yazi" "btdu" "compsize" "jdupes" "duperemove")
+OPTIONAL_PKGS=("yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
 readonly LIBREOFFICE_PKGS=("libreoffice-fresh" "libreoffice-extension-texmaths" "libreoffice-extension-writer2latex")
@@ -15,7 +15,7 @@ readonly LAPTOP_PKGS=("powerstat")
 # Sources:
 # https://github.com/lutris/docs/blob/master/WineDependencies.md#archendeavourosmanjaroother-arch-derivatives
 # https://wiki.archlinux.org/title/wine
-readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader")
+readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader" "lib32-alsa-oss")
 
 readonly GAMING_PKGS=("steam" "lutris" "protontricks" "zenity" "mangohud" "lib32-mangohud")
 
@@ -262,7 +262,7 @@ copy_mangohud_config(){
     done
 }
 
-
+# https://wiki.archlinux.org/title/Discord#Discord_asks_for_an_update_not_yet_available_in_the_repository
 disable_update_msg_discord(){
     readarray -td"," arr < <(printf "%s" "$(grep -E "^wheel" /etc/gshadow | cut -d: -f4)")
 
@@ -275,6 +275,12 @@ disable_update_msg_discord(){
     done
 }
 
+# https://wiki.archlinux.org/title/LibreOffice
+# https://wiki.archlinux.org/title/TeX_Live
+# https://wiki.archlinux.org/title/Wine
+# https://wiki.archlinux.org/title/MangoHud
+# https://wiki.dolphin-emu.org/index.php?title=Bluetooth_Passthrough#Linux
+# https://wiki.archlinux.org/title/Udev#Allowing_regular_users_to_use_devices
 install_optional_pkgs(){
     colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
 
@@ -336,6 +342,8 @@ install_optional_pkgs(){
 
         local is_done="$FALSE"
 
+        # https://wiki.dolphin-emu.org/index.php?title=Bluetooth_Passthrough#Linux
+        # https://wiki.archlinux.org/title/Udev#Allowing_regular_users_to_use_devices
         echo "You need to install a udev for the adapter to be working correctly for USB Passthrough on Dolphin"
         while [ "$is_done" -eq "$FALSE" ]
         do
@@ -510,23 +518,40 @@ install_xorg(){
                 ;;
             
             "nvidia")
+                # First install the linux headers and dkms so it can build the packages for the current kernel
                 pacman -S linux-headers dkms
                 
-                if ask "Do you want to install NVIDIA beta packages?";
+                if ask "Do you have an RTX 2000 (Turing) or newer?";
                 then
-                    echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
+                    if ask "Do you want to install NVIDIA beta packages?";
+                    then
+                        echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
 
-                    # First install the linux headers and dkms so it can build the packages for the current kernel
+                        install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
+                        pacman -D --asdeps nvidia-utils-beta
 
-                    install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
-                    pacman -D --asdeps nvidia-utils-beta
-
-                    install_aur_package "https://aur.archlinux.org/nvidia-beta-dkms.git"
-                    install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                        install_aur_package "https://aur.archlinux.org/nvidia-open-beta-dkms.git"
+                        install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                    else
+                        echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
+                        pacman --noconfirm -S nvidia-open-dkms lib32-nvidia-utils nvidia-settings
+                    fi
                 else
-                    echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                    pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
+                    if ask "Do you want to install NVIDIA beta packages?";
+                    then
+                        echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
+
+                        install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
+                        pacman -D --asdeps nvidia-utils-beta
+
+                        install_aur_package "https://aur.archlinux.org/nvidia-beta-dkms.git"
+                        install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                    else
+                        echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
+                        pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
+                    fi
                 fi
+                
 
                 if [ "$is_laptop" -eq "$FALSE" ];
                 then
@@ -617,7 +642,7 @@ install_kvm(){
 
     if [ "$modprobe_cpu" -gt "0" ];
     then
-        echo -e "${RED}Error. Not loaded CPU specific KVM. Exiting.${NO_COLOR}"
+        echo -e "${RED}Error. Not loaded CPU specific KVM. Exiting...${NO_COLOR}"
         return "$FALSE"
     fi
 
@@ -652,8 +677,8 @@ install_kvm(){
     pacman --noconfirm -S qemu-full qemu-block-gluster qemu-block-iscsi samba qemu-guest-agent qemu-user-static
 
     # UEFI Support
-    echo -e "${BRIGHT_CYAN}Installing packages for UEFI and TPM Support...${NO_COLOR}"
-    pacman --noconfirm -S edk2-ovmf swtpm
+    echo -e "${BRIGHT_CYAN}Installing packages for UEFI, TPM and Secure Boot Support...${NO_COLOR}"
+    pacman --noconfirm -S edk2-ovmf swtpm virt-firmware
 
     # IOMMU
     echo -e "${BRIGHT_CYAN}Setting up IOMMU...${NO_COLOR}"
@@ -811,6 +836,7 @@ install_lsd(){
 # https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
 # https://wiki.archlinux.org/title/snapper#Configuration_of_snapper_and_mount_point
 # https://wiki.archlinux.org/title/snapper#Wrapping_pacman_transactions_in_snapshots
+# https://wiki.archlinux.org/title/Snapper#Snapshots_on_boot
 btrfs_snapshots(){
     colored_msg "Installing snapper and snap-pac..." "${BRIGHT_CYAN}" "#"
 
@@ -1356,6 +1382,7 @@ lower_grub_res(){
 
 # https://wiki.archlinux.org/title/External_GPU#Xorg_rendered_on_iGPU,_PRIME_render_offload_to_eGPU
 # https://wiki.archlinux.org/title/PRIME#PRIME_GPU_offloading
+# https://wiki.archlinux.org/title/PRIME#PCI-Express_Runtime_D3_(RTD3)_Power_Management
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
 
