@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -15,7 +15,7 @@ readonly LAPTOP_PKGS=("powerstat")
 # Sources:
 # https://github.com/lutris/docs/blob/master/WineDependencies.md#archendeavourosmanjaroother-arch-derivatives
 # https://wiki.archlinux.org/title/wine
-readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader")
+readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "lib32-gnutls" "lib32-sdl2" "lib32-gst-plugins-base" "lib32-gst-plugins-good" "lib32-gst-plugins-bad" "lib32-gst-plugins-ugly" "lib32-gst-libav" "samba" "giflib" "lib32-giflib" "libpng" "lib32-libpng" "libldap" "lib32-libldap" "gnutls" "mpg123" "lib32-mpg123" "openal" "lib32-openal" "v4l-utils" "lib32-v4l-utils" "libpulse" "pipewire-pulse" "lib32-libpulse" "libgpg-error" "lib32-libgpg-error" "alsa-plugins" "lib32-alsa-plugins" "alsa-lib" "lib32-alsa-lib" "libjpeg-turbo" "lib32-libjpeg-turbo" "sqlite" "lib32-sqlite" "libxcomposite" "lib32-libxcomposite" "libxinerama" "lib32-libgcrypt" "libgcrypt" "lib32-libxinerama" "ncurses" "lib32-ncurses" "ocl-icd" "lib32-ocl-icd" "libxslt" "lib32-libxslt" "libva" "lib32-libva" "gtk3" "lib32-gtk3" "gst-plugins-base-libs" "lib32-gst-plugins-base-libs" "vulkan-icd-loader" "lib32-vulkan-icd-loader" "lib32-alsa-oss")
 
 readonly GAMING_PKGS=("steam" "lutris" "protontricks" "zenity" "mangohud" "lib32-mangohud")
 
@@ -30,7 +30,6 @@ readonly VIRTIO_MODULES=("virtio-net" "virtio-blk" "virtio-scsi" "virtio-serial"
 # TODO
 # ROOTLESS SDDM UNDER WAYLAND
 # KVM -> lsmod | grep kvm. Pone que hay que iniciarlos manualmente. Revisar por si.
-# add_sentence_end_quote y el otro. Junstarlos en uno solo.
 # Asegurar que al menos un usuario esta en el grupo wheel
 
 # $1 (optional): Message to be displayed.
@@ -58,10 +57,16 @@ redo_grub(){
 # https://wiki.archlinux.org/title/Keyboard_shortcuts#Kernel_(SysRq)
 enable_reisub(){
     colored_msg "Enabling REISUB..." "${BRIGHT_CYAN}" "#"
+    
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "sysrq_always_enabled=1" "/etc/default/grub"
+        redo_grub "$FALSE"
+    else
+        add_option_bootloader "sysrq_always_enabled=1" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "sysrq_always_enabled=1" "/boot/loader/entries/arch-fallback.conf"
+    fi
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " sysrq_always_enabled=1" "/etc/default/grub" "$TRUE" "$TRUE"
-
-    redo_grub "$FALSE"
 }
 
 # https://wiki.archlinux.org/title/Solid_state_drive#Periodic_TRIM
@@ -74,8 +79,10 @@ enable_trim(){
 
     if [ "$has_encryption" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
-        redo_grub "$FALSE"
+        # add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=discard" "/etc/default/grub" "$TRUE" "$TRUE"
+        # Commented out since the above configuration is recommended for LUKS1/plain devices
+        cryptsetup --allow-discards --persistent refresh "$DM_NAME"
+        # [ "redo_grub "$FALSE"
     fi
 }
 
@@ -94,49 +101,56 @@ install_shells(){
 add_users(){
     colored_msg "User creation." "${BRIGHT_CYAN}" "#"
 
-    local adduser_done="$TRUE"
+    local add_new_user="$TRUE"
     local username
     local shell
     local passwd_ok="$FALSE"
 
-    while [ "$adduser_done" -eq "$TRUE" ]
+    while [ "$add_new_user" -eq "$TRUE" ]
     do
 
-        echo -n "Username: "
+        echo -n "Username (empty to exit): "
         read -r username
 
-        echo -e "${BRIGHT_CYAN}Available shells:${NO_COLOR}"
-        cat /etc/shells
-
-        echo -ne "${BRIGHT_CYAN}Select a shell: ${NO_COLOR}"
-        read -r shell
-
-        if ask "Do you want this user to be part of the sudo (wheel) group?";
+        if [ -n "$username" ];
         then
-            useradd -m -G wheel -s "$shell" "$username"
+            echo -e "${BRIGHT_CYAN}Available shells:${NO_COLOR}"
+            cat /etc/shells
+
+            echo -ne "${BRIGHT_CYAN}Select a shell: ${NO_COLOR}"
+            read -r shell
+
+            if ask "Do you want this user to be part of the sudo (wheel) group?";
+            then
+                useradd -m -G wheel -s "$shell" "$username"
+            else
+                useradd -m -s "$shell" "$username"
+            fi
+
+            passwd_ok="$FALSE"
+
+            while [ "$passwd_ok" -eq "$FALSE" ]
+            do
+                echo -e "${BRIGHT_CYAN}Now you will be asked to type a password for the new user${NO_COLOR}"
+                passwd "$username"
+
+
+                if [ "$?" -ne "$TRUE" ];
+                then
+                    passwd_ok="$FALSE"
+                else
+                    passwd_ok="$TRUE"
+                fi
+            done
+
+
+            ask "Do you want to add another user?"
+            add_new_user="$?"
         else
-            useradd -m -s "$shell" "$username"
+            add_new_user="$FALSE"
         fi
 
-        passwd_ok="$FALSE"
-
-        while [ "$passwd_ok" -eq "$FALSE" ]
-        do
-            echo -e "${BRIGHT_CYAN}Now you will be asked to type a password for the new user${NO_COLOR}"
-            passwd "$username"
-
-
-            if [ "$?" -ne "$TRUE" ];
-            then
-                passwd_ok="$FALSE"
-            else
-                passwd_ok="$TRUE"
-            fi
-        done
-
-
-        ask "Do you want to add another user?"
-        adduser_done="$?"
+        unset username
     done
 }
 
@@ -161,7 +175,7 @@ enable_multilib(){
 
     pacman --noconfirm -Syu
     
-    redo_grub
+    [ "$bootloader" = "grub" ] && redo_grub
 
     echo -e "${BRIGHT_CYAN}Check changes:${NO_COLOR}"
     awk 'BEGIN {num=2; first="[multilib]"; entered="false"} (($0==first||entered=="true")&&num>0){print $0;num--;entered="true"}' /etc/pacman.conf
@@ -194,7 +208,7 @@ prepare_for_aur(){
 
     # https://wiki.archlinux.org/title/makepkg#Parallel_compilation
     # Enable multi-core compilation
-    awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"-j$(nproc)\""}};1' /etc/makepkg.conf > /etc/makepkg.tmp && mv /etc/makepkg.tmp /etc/makepkg.conf
+    awk 'BEGIN { OFS=FS="="; name="#MAKEFLAGS" } {if($1==name){sub(/#/,""); $2="\"--jobs=$(nproc)\""}};1' /etc/makepkg.conf > /etc/makepkg.tmp && mv /etc/makepkg.tmp /etc/makepkg.conf
 
     echo -e "${BRIGHT_CYAN}Check changes: ${NO_COLOR}"
     grep "MAKEFLAGS=" /etc/makepkg.conf
@@ -248,7 +262,7 @@ copy_mangohud_config(){
     done
 }
 
-
+# https://wiki.archlinux.org/title/Discord#Discord_asks_for_an_update_not_yet_available_in_the_repository
 disable_update_msg_discord(){
     readarray -td"," arr < <(printf "%s" "$(grep -E "^wheel" /etc/gshadow | cut -d: -f4)")
 
@@ -261,6 +275,12 @@ disable_update_msg_discord(){
     done
 }
 
+# https://wiki.archlinux.org/title/LibreOffice
+# https://wiki.archlinux.org/title/TeX_Live
+# https://wiki.archlinux.org/title/Wine
+# https://wiki.archlinux.org/title/MangoHud
+# https://wiki.dolphin-emu.org/index.php?title=Bluetooth_Passthrough#Linux
+# https://wiki.archlinux.org/title/Udev#Allowing_regular_users_to_use_devices
 install_optional_pkgs(){
     colored_msg "Installing optional packages..." "${BRIGHT_CYAN}" "#"
 
@@ -304,12 +324,26 @@ install_optional_pkgs(){
         copy_mangohud_config
     fi
 
+    if ask "Do you want to install Clone Hero?";
+    then
+        if ask "Do you want to install the PTB (Public Test Build)?";
+        then
+            sudo -S -i -u "$USER" yay -S "clonehero-ptb"
+        else
+            sudo -S -i -u "$USER" yay -S "clonehero"
+        fi
+        
+        sudo -S -i -u "$USER" yay -S --asdeps "pulseaudio-alsa"
+    fi
+
     if ask "Do you want to install some emulators?";
     then
         sudo -S -i -u "$USER" yay -S "${EMU_PKGS[@]}"
 
         local is_done="$FALSE"
 
+        # https://wiki.dolphin-emu.org/index.php?title=Bluetooth_Passthrough#Linux
+        # https://wiki.archlinux.org/title/Udev#Allowing_regular_users_to_use_devices
         echo "You need to install a udev for the adapter to be working correctly for USB Passthrough on Dolphin"
         while [ "$is_done" -eq "$FALSE" ]
         do
@@ -324,7 +358,7 @@ The following adapters are configured:
             case $option in
                 1)
                     echo "Installing udev rule for TP-Link UB400..."
-                    cp general_scripts/50-dolphin-UB400.rules /etc/udev/rules.d/
+                    cp additional_resources/udev_rules/50-dolphin-UB400.rules /etc/udev/rules.d/
                     udevadm trigger
                     udevadm control --reload
                     
@@ -339,6 +373,25 @@ The following adapters are configured:
                     ;;
             esac
         done
+    fi
+
+    if ask "Do you intend to use a KROM Kreator or keyboard with VID:PID=5566:0008?";
+    then
+        echo -e "${BRIGHT_CYAN}Adding kernel parameter so the OS recognizes it...${NO_COLOR}"
+        
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/etc/default/grub"
+            redo_grub "$FALSE"
+        else
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/boot/loader/entries/arch-fallback.conf"
+        fi
+    fi
+
+    if ask "Do you want to install OpenRGB?";
+    then
+        sudo -S -i -u "$USER" yay -S "openrgb"   
     fi
 }
 
@@ -363,8 +416,16 @@ install_cpu_scaler(){
     if [ "$is_intel" -eq "$FALSE" ];
     then
         echo -e "${BRIGHT_CYAN}Adding AMD P-State driver...${NO_COLOR}"
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " amd_pstate=active" "/etc/default/grub" "$TRUE" "$TRUE"
-        redo_grub "$FALSE"
+
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "amd_pstate=active" "/etc/default/grub"
+            redo_grub "$FALSE"
+        else
+            add_option_bootloader "amd_pstate=active" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "amd_pstate=active" "/boot/loader/entries/arch-fallback.conf"
+        fi
+        
     fi
 }
 
@@ -390,11 +451,11 @@ enable_hw_acceleration(){
                 # It is mandatory to set the environment variables.
                 if [ "$is_laptop" -eq "$TRUE" ];
                 then
-                    cp "laptop_scripts/laptop_hw_acc.sh" "/etc/profile.d"
+                    cp "additional_resources/laptop_scripts/laptop_hw_acc.sh" "/etc/profile.d"
 
                 else
                     echo "LIBVA_DRIVER_NAME=nvidia
-NVD_BACKEND=direct
+# NVD_BACKEND=direct
 MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
                 fi
                 ;;
@@ -447,6 +508,10 @@ install_aur_package(){
     sudo -S -i -u "$USER" bash -c "cd \"/home/$USER/$pkg_name\" && makepkg -sri"
 }
 
+# https://wiki.archlinux.org/title/systemd-boot#pacman_hook
+install_sd_boot_pkgs(){
+    install_aur_package "https://aur.archlinux.org/systemd-boot-pacman-hook.git"
+}
 
 # https://wiki.archlinux.org/title/Xorg
 # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
@@ -472,27 +537,50 @@ install_xorg(){
                 ;;
             
             "nvidia")
+                # First install the linux headers and dkms so it can build the packages for the current kernel
                 pacman -S linux-headers dkms
                 
-                if ask "Do you want to install NVIDIA beta packages?";
+                if ask "Do you have an RTX 2000 (Turing) or newer?";
                 then
-                    echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
+                    if ask "Do you want to install NVIDIA beta packages?";
+                    then
+                        local -r USER=$(get_sudo_user)
 
-                    # First install the linux headers and dkms so it can build the packages for the current kernel
+                        echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
 
-                    install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
-                    pacman -D --asdeps nvidia-utils-beta
+                        install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
+                        pacman -D --asdeps nvidia-utils-beta
 
-                    install_aur_package "https://aur.archlinux.org/nvidia-beta-dkms.git"
-                    install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                        sudo -S -i -u "$USER" yay -S nvidia-open-beta-dkms
+                        install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                    else
+                        echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
+                        pacman --noconfirm -S nvidia-open-dkms lib32-nvidia-utils nvidia-settings
+                    fi
                 else
-                    echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                    pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
+                    if ask "Do you want to install NVIDIA beta packages?";
+                    then
+                        echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
+
+                        install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
+                        pacman -D --asdeps nvidia-utils-beta
+
+                        install_aur_package "https://aur.archlinux.org/nvidia-beta-dkms.git"
+                        install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
+                    else
+                        echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
+                        pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
+                    fi
                 fi
+                
 
                 if [ "$is_laptop" -eq "$FALSE" ];
                 then
                     # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+                    # https://superuser.com/questions/577307/how-to-get-a-list-of-active-drivers-that-are-statically-built-into-the-linux-ker
+                    # Se pueden poner en modprobe, ya que no son los compilados en el kernel, sino que son externos y por tanto se pueden modificar con el archivo. En el enlace siguiente lo pone.
+                    # https://wiki.archlinux.org/title/Kernel_module#Using_kernel_command_line
+                    
                     echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
                     echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
                     # To check if it is working: 
@@ -575,7 +663,7 @@ install_kvm(){
 
     if [ "$modprobe_cpu" -gt "0" ];
     then
-        echo -e "${RED}Error. Not loaded CPU specific KVM. Exiting.${NO_COLOR}"
+        echo -e "${RED}Error. Not loaded CPU specific KVM. Exiting...${NO_COLOR}"
         return "$FALSE"
     fi
 
@@ -610,19 +698,26 @@ install_kvm(){
     pacman --noconfirm -S qemu-full qemu-block-gluster qemu-block-iscsi samba qemu-guest-agent qemu-user-static
 
     # UEFI Support
-    echo -e "${BRIGHT_CYAN}Installing packages for UEFI and TPM Support...${NO_COLOR}"
-    pacman --noconfirm -S edk2-ovmf swtpm
+    echo -e "${BRIGHT_CYAN}Installing packages for UEFI, TPM and Secure Boot Support...${NO_COLOR}"
+    pacman --noconfirm -S edk2-ovmf swtpm virt-firmware
 
     # IOMMU
     echo -e "${BRIGHT_CYAN}Setting up IOMMU...${NO_COLOR}"
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
+    # Commented out since it is advised against using it
+    # add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " iommu=pt" "/etc/default/grub" "$TRUE" "$TRUE"
 
     if [ "$is_intel" -eq "$TRUE" ];
     then
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " intel_iommu=on" "/etc/default/grub" "$TRUE" "$TRUE"
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "intel_iommu=on" "/etc/default/grub"
+            redo_grub
+        else
+            add_option_bootloader "intel_iommu=on" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "intel_iommu=on" "/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
 
-    redo_grub
 
     # Libvirt installation
     echo -e "${BRIGHT_CYAN}Installing libvirt...${NO_COLOR}"
@@ -762,6 +857,7 @@ install_lsd(){
 # https://wiki.archlinux.org/title/snapper#Suggested_filesystem_layout
 # https://wiki.archlinux.org/title/snapper#Configuration_of_snapper_and_mount_point
 # https://wiki.archlinux.org/title/snapper#Wrapping_pacman_transactions_in_snapshots
+# https://wiki.archlinux.org/title/Snapper#Snapshots_on_boot
 btrfs_snapshots(){
     colored_msg "Installing snapper and snap-pac..." "${BRIGHT_CYAN}" "#"
 
@@ -816,7 +912,7 @@ install_yay(){
     sudo -S -i -u "$USER" yay -Syu --devel
     sudo -S -i -u "$USER" yay -Y --devel --save 
 
-    redo_grub
+    [ "$bootloader" = "grub" ] && redo_grub
 }
 
 # https://wiki.archlinux.org/title/dm-crypt/Device_encryption#Keyfiles
@@ -832,7 +928,7 @@ enable_crypt_keyfile(){
     while [ "$is_done" -eq "$FALSE" ]
     do
         lsblk
-        echo -ne "${YELLOW}Select drive: ${NO_COLOR}"
+        echo -ne "${YELLOW}Select drive (not the partition): ${NO_COLOR}"
         read -r drive
 
         ask "You have selected $drive. Is that OK?"
@@ -944,35 +1040,60 @@ Select one of the following options:
 
     # Creating the keyfile
     dd bs=512 count=4 if=/dev/random of="/mnt/$keyfile_name" iflag=fullblock
+    # Denying access to other users but root
+    chmod 600 "/mnt/$keyfile_name"
+    
     cryptsetup luksAddKey "$sys_part" "/mnt/$keyfile_name"
 
     # Adding the modules on mkinitcpio, only if they are not already there
     echo -e "${BRIGHT_CYAN}Adding $selected_module to mkinitcpio.conf...${NO_COLOR}"
-    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_sentence_2 "^MODULES=" "$selected_module" "/etc/mkinitcpio.conf" ")"
+    ! grep -E "^MODULES=\(.*$selected_module.*\)$" "/etc/mkinitcpio.conf" && add_option_mkinitcpio "MODULES" "$selected_module" "/etc/mkinitcpio.conf"
     mkinitcpio -P
 
 
+    # !!!
     # We need to add a new kernel parameter.
     # First, we check if rd.luks.options exists.
     if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
     then
         # If the entry exists, we add a new parameter inside
         echo -e "${BRIGHT_CYAN}The entry exists. Adding new option.${NO_COLOR}"
-        add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
+
+        # !!!
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
+        else
+            add_option_inside_luks_options "keyfile-timeout=10s" "/boot/loader/entries/arch.conf" "$TRUE"            
+            add_option_inside_luks_options "keyfile-timeout=10s" "/boot/loader/entries/arch-fallback.conf" "$TRUE"
+        fi
     else
         # If the entry does not exist, we add rd.luks.options directly.
         echo -e "${BRIGHT_CYAN}The entry does not exist. Adding new option.${NO_COLOR}"
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.options=keyfile-timeout=10s" "/etc/default/grub" "$TRUE" "$TRUE"
+
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/etc/default/grub"
+        else
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.options=keyfile-timeout=10s" "/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
 
 #   Now we need to add the key UUID to the kernel parameter.
     local -r PEN_UUID=$(blkid -s UUID -o value "$part")
     local -r ROOT_UUID=$(blkid -s UUID -o value "$sys_part")
 
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub" "$TRUE" "$TRUE"
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/etc/default/grub"
 
-    # We regenerate the grub config
-    redo_grub
+        # We regenerate the grub config
+        redo_grub
+    else
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "rd.luks.key=$ROOT_UUID=$keyfile_name:UUID=$PEN_UUID" "/boot/loader/entries/arch-fallback.conf"
+    fi
 
     # Finally, unmount the pendrive
     umount /mnt
@@ -1084,7 +1205,7 @@ sync_time_dual_boot(){
     then
         echo -e "${GREEN}IMPORTANT!!${NO_COLOR} You need to complete the configuration by going to the following URL: ${BRIGHT_CYAN}https://wiki.archlinux.org/title/System_time#UTC_in_Microsoft_Windows${NO_COLOR}
 
-In any case, you can use the *.reg file located in .scripts/win64 to install it on Windows."
+In any case, you can use the *.reg file located in .scripts/additional_resources/win64 to install it on Windows."
     fi
 
     echo -e "${BRIGHT_CYAN}Enabling NTP...${NO_COLOR}"
@@ -1122,7 +1243,7 @@ Options:
         case $selection in
             "1")
                 echo -e "${BRIGHT_CYAN}Copying profile...${NO_COLOR}"
-                cp CoolerControl/Torre-AMD/* /etc/coolercontrol
+                cp additional_resources/CoolerControl/Torre-AMD/* /etc/coolercontrol
                 systemctl restart coolercontrold
                 is_done="$TRUE"
                 ;;
@@ -1162,7 +1283,16 @@ install_wireguard(){
     echo -e "${BRIGHT_CYAN}Installing wireguard-tools...${NO_COLOR}"
     sudo -S -i -u "$USER" yay -S wireguard-tools
 
-    local is_done="$FALSE"
+    local is_done
+
+    if ask "Do you want to add a Wireguard configuration file to the system?";
+    then
+        is_done="$FALSE"
+    else
+        is_done="$TRUE"
+    fi
+
+
     local conf_filename
     while [ "$is_done" -eq "$FALSE" ]
     do
@@ -1174,12 +1304,14 @@ install_wireguard(){
             conf_filename=$(echo "$conf_file" | rev | cut -d/ -f1 | rev )
 
             ask "You have selected $conf_filename. Is that correct?" && is_done="$TRUE"
+            
+            # Only add the config file if the user has agreed
+            [ "$is_done" -eq "$TRUE" ] && nmcli connection import type wireguard file "$conf_file"
         else
             echo -e "${RED}The file does not exist${NO_COLOR}"
         fi
     done
 
-    nmcli connection import type wireguard file "$conf_file"
 }
 
 
@@ -1189,6 +1321,13 @@ install_autoeq(){
     local -r USER=$(get_sudo_user)
     
     sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins
+}
+
+update_gendb(){
+    colored_msg "Updating yay development database..." "${BRIGHT_CYAN}" "#"
+    local -r USER=$(get_sudo_user)
+
+    sudo -S -i -u "$USER" yay -Y --gendb
 }
 
 install_plymouth(){
@@ -1230,9 +1369,14 @@ install_plymouth(){
     mkinitcpio -P
 
 
-
-    add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " splash" "/etc/default/grub" "$TRUE" "$TRUE"
-    redo_grub "$FALSE"
+    if [ "$bootloader" = "grub" ];
+    then
+        add_option_bootloader "splash" "/etc/default/grub"
+        redo_grub "$FALSE"
+    else
+        add_option_bootloader "splash" "/boot/loader/entries/arch.conf"
+        add_option_bootloader "splash" "/boot/loader/entries/arch-fallback.conf"
+    fi
 }
 
 
@@ -1259,6 +1403,7 @@ lower_grub_res(){
 
 # https://wiki.archlinux.org/title/External_GPU#Xorg_rendered_on_iGPU,_PRIME_render_offload_to_eGPU
 # https://wiki.archlinux.org/title/PRIME#PRIME_GPU_offloading
+# https://wiki.archlinux.org/title/PRIME#PCI-Express_Runtime_D3_(RTD3)_Power_Management
 enable_envycontrol(){
     colored_msg "Enabling envycontrol..." "${BRIGHT_CYAN}" "#"
 
@@ -1270,7 +1415,7 @@ enable_envycontrol(){
     # envycontrol -s integrated
 
     echo -e "${BRIGHT_CYAN}Adding temporary configuration...${NO_COLOR}"
-    cp "laptop_scripts/laptop_prime.sh" "/etc/profile.d"
+    cp "additional_resources/laptop_scripts/laptop_prime.sh" "/etc/profile.d"
 }
 
 
@@ -1299,7 +1444,7 @@ main(){
 
     case $log_step in
         0)
-            ask "Do you want to lower grub resolution to 1080p to make menu navigation faster (usually occurs on HiDPI displays)?" && lower_grub_res
+            [ "$bootloader" = "grub" ] && ask "Do you want to lower grub resolution to 1080p to make menu navigation faster (usually occurs on HiDPI displays)?" && lower_grub_res
             ask "Do you want to enable NTP?" && sync_time_dual_boot
             ask "Do you want to have REISUB?" && enable_reisub
             ask "Do you want to enable TRIM?" && enable_trim
@@ -1314,6 +1459,7 @@ main(){
             # ask "Do you want to install an AUR helper?" && install_yay
             prepare_for_aur
             install_yay
+            [ "$bootloader" = "sd-boot" ] && ask "Do you want to update systemd-boot every time systemd updates?" && install_sd_boot_pkgs
             ask "Do you want to install bluetooth service?" && install_bluetooth
 
             # CHECK INSTALL_XORG ON LAPTOP. 
@@ -1388,6 +1534,8 @@ main(){
                 ask "Do you want to enable envycontrol?" && enable_envycontrol
                 ask "Do you want to install laptop optional packages?" && install_laptop_opt_pkgs
             fi
+
+            update_gendb
             ;;
 
         *)

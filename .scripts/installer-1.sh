@@ -327,13 +327,58 @@ generate_locales(){
     done
 
     # Uncomment selected locales
-    # sed -i "s/#tres cuatro cinco/nano 33/g" example
     for i in "${selected_locales[@]}"
     do
         echo -e "${BRIGHT_CYAN}Adding ${i}...${NO_COLOR}"
         sed -i "s/#${i}/${i}/g" "/mnt/etc/locale.gen"
     done
     unset i
+
+    # Generate the locales
+    echo -e "${BRIGHT_CYAN}Generating locales...${NO_COLOR}"
+    arch-chroot /mnt locale-gen
+
+    # Create locale.conf file with the first locale
+    # It should show all selected locales and should prompt the user to select one
+    is_done="$FALSE"
+
+    while [ "$is_done" -eq "$FALSE" ]
+    do
+        # Lists available locales
+        echo -e "${BRIGHT_CYAN}These are the available locales:${NO_COLOR}"
+
+        counter=1
+        for i in "${selected_locales[@]}"
+        do
+            echo "$counter.- $i"
+
+            ((counter++))
+        done
+        unset i
+
+        echo -ne "${YELLOW}Please select an option (only a number): ${NO_COLOR}"
+        read -r locale
+
+        # Checks if the selected value is a number
+        re='^[0-9]+$'
+        if [[ $locale =~ $re ]] && [ "$locale" -gt "0" ] && [ "$locale" -le "${#selected_locales[@]}" ]; 
+        then
+            if ask "You have selected $locale. Is that OK?";
+            then
+                # Getting the desired index (starts at 0) and the desired locale without the end
+                locale_index=$((locale - 1))
+                locale=$(echo "${selected_locales[locale_index]}" | cut -d" " -f1)
+
+                echo -e "${BRIGHT_CYAN}Adding $locale...${NO_COLOR}"
+                echo "LANG=$locale" > /mnt/etc/locale.conf
+
+                is_done="$TRUE"
+            fi
+        else
+            echo -e "${RED}Error: The selected option is not a number or is not in range.${NO_COLOR}"
+            is_done="$FALSE"
+        fi
+    done
 }
 
 write_keymap(){
@@ -540,27 +585,64 @@ install_microcode(){
 
 # https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader
 # https://wiki.archlinux.org/title/GRUB
+# https://wiki.archlinux.org/title/Systemd-boot
+# https://wiki.archlinux.org/title/Kernel_parameters#Parameter_list
+# https://wiki.archlinux.org/title/Btrfs#Mounting_subvolume_as_root
 install_bootloader(){
     colored_msg "Bootloader installation..." "${BRIGHT_CYAN}" "#"
 
-    # Install bootloader package
-    arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
+    ask_global_var "bootloader" "$TRUE" "$TRUE"
 
-    # Configure GRUB
-    sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
-
-    # Add the following lines ONLY if root partition is encrypted
-    if [ "$has_encryption" -eq "$TRUE" ];
+    if [ "$bootloader" = "grub" ];
     then
-        local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+        # Install bootloader package
+        arch-chroot /mnt pacman --noconfirm -S grub efibootmgr
 
-        add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=\/dev\/mapper\/${DM_NAME}" "/mnt/etc/default/grub" "$TRUE" "$TRUE"
+        # Configure GRUB
+        sed -i "s/ quiet\"$/\"/" /mnt/etc/default/grub
 
-        [ "$root_fs" = "btrfs" ] && add_sentence_end_quote "^GRUB_CMDLINE_LINUX=" " rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub" "$TRUE" "$TRUE"        
+        # Add the following lines ONLY if root partition is encrypted
+        if [ "$has_encryption" -eq "$TRUE" ];
+        then
+            local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/etc/default/grub"
+        fi
+
+        # If the filesystem is btrfs, we add the necessary rootflags
+        [ "$root_fs" = "btrfs" ] && add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/etc/default/grub"
+
+        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
+        arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+    else
+        # Install bootloader to NVRAM
+        arch-chroot /mnt bootctl install --esp-path=/boot
+
+        # Copying loader and entries configuration
+        cp additional_resources/systemd-boot/loader.conf /mnt/boot/loader
+        cp additional_resources/systemd-boot/arch.conf /mnt/boot/loader/entries
+        cp additional_resources/systemd-boot/arch-fallback.conf /mnt/boot/loader/entries
+
+        if [ "$has_encryption" -eq "$TRUE" ];
+        then
+            local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
+
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
+
+        else
+            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
+        fi
+
+        # If the filesystem is btrfs, we add the necessary rootflags
+        if [ "$root_fs" = "btrfs" ];
+        then
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "rootflags=compress-force=zstd,subvol=@" "/mnt/boot/loader/entries/arch-fallback.conf"
+        fi
     fi
-
-    arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Arch
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 # Only for debugging purposes

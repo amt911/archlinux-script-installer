@@ -32,7 +32,7 @@ This repository is a collection of scripts used to install ArchLinux (almost) un
 
 - BTRFS with subvolumes as the filesystem.
 - Automatic snapshots using ```snapper```.
-- GRUB as the bootloader.
+- GRUB or systemd-boot as the bootloader.
 - Encrypted BTRFS filesystem using a password and a keyfile stored in external media.
 - Using KDE Plasma as the default Desktop Environment.
 - If using a laptop with NVIDIA Graphics, it uses ```envycontrol``` as the switching command.
