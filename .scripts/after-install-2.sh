@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -374,6 +374,25 @@ The following adapters are configured:
             esac
         done
     fi
+
+    if ask "Do you intend to use a KROM Kreator or keyboard with VID:PID=5566:0008?";
+    then
+        echo -e "${BRIGHT_CYAN}Adding kernel parameter so the OS recognizes it...${NO_COLOR}"
+        
+        if [ "$bootloader" = "grub" ];
+        then
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/etc/default/grub"
+            redo_grub "$FALSE"
+        else
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/boot/loader/entries/arch.conf"
+            add_option_bootloader "usbcore.quirks=5566:0008:i" "/boot/loader/entries/arch-fallback.conf"
+        fi
+    fi
+
+    if ask "Do you want to install OpenRGB?";
+    then
+        sudo -S -i -u "$USER" yay -S "openrgb"   
+    fi
 }
 
 # https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
@@ -432,11 +451,11 @@ enable_hw_acceleration(){
                 # It is mandatory to set the environment variables.
                 if [ "$is_laptop" -eq "$TRUE" ];
                 then
-                    cp "laptop_scripts/laptop_hw_acc.sh" "/etc/profile.d"
+                    cp "additional_resources/laptop_scripts/laptop_hw_acc.sh" "/etc/profile.d"
 
                 else
                     echo "LIBVA_DRIVER_NAME=nvidia
-NVD_BACKEND=direct
+# NVD_BACKEND=direct
 MOZ_DISABLE_RDD_SANDBOX=1" >> /etc/environment
                 fi
                 ;;
@@ -525,12 +544,14 @@ install_xorg(){
                 then
                     if ask "Do you want to install NVIDIA beta packages?";
                     then
+                        local -r USER=$(get_sudo_user)
+
                         echo -e "${BRIGHT_CYAN}Installing nvidia beta drivers...${NO_COLOR}"
 
                         install_aur_package "https://aur.archlinux.org/nvidia-utils-beta.git"
                         pacman -D --asdeps nvidia-utils-beta
 
-                        install_aur_package "https://aur.archlinux.org/nvidia-open-beta-dkms.git"
+                        sudo -S -i -u "$USER" yay -S nvidia-open-beta-dkms
                         install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
                     else
                         echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
