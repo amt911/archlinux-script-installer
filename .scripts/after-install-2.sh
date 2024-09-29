@@ -1223,7 +1223,7 @@ enable_fan_control(){
     colored_msg "Installing Fan Control software..." "${BRIGHT_CYAN}" "#"
 
     echo -e "${BRIGHT_CYAN}Installing CoolerControl...${NO_COLOR}"
-    sudo -S -i -u "$USER" yay -S coolercontrol
+    sudo -S -i -u "$USER" yay -S coolercontrol-bin
 
     echo -e "${BRIGHT_CYAN}Enabling coolercontrol service...${NO_COLOR}"
     systemctl enable --now coolercontrold
