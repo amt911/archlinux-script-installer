@@ -558,8 +558,8 @@ install_xorg(){
             "nvidia")
                 # First install the linux headers and dkms so it can build the packages for the current kernel
                 pacman -S linux-headers dkms
-                
-                if ask "Do you have an RTX 2000 (Turing) or newer?";
+
+                if ask "Do you have an RTX 2000 Series GPU (Turing) or newer?";
                 then
                     if ask "Do you want to install NVIDIA beta packages?";
                     then
@@ -597,11 +597,23 @@ install_xorg(){
                 then
                     # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
                     # https://superuser.com/questions/577307/how-to-get-a-list-of-active-drivers-that-are-statically-built-into-the-linux-ker
-                    # Se pueden poner en modprobe, ya que no son los compilados en el kernel, sino que son externos y por tanto se pueden modificar con el archivo. En el enlace siguiente lo pone.
+                    # We can put the kernel module config in modprobe.d since they are not compiled in the kernel, they are in fact external, so they can be modified using a modprobe file. The following link says so:
                     # https://wiki.archlinux.org/title/Kernel_module#Using_kernel_command_line
                     
-                    echo "options nvidia_drm modeset=1" > /etc/modprobe.d/nvidia.conf
-                    echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    local -r MODESET_STATUS=$(cat /sys/module/nvidia_drm/parameters/modeset)
+                    local -r FBDEV_STATUS=$(cat /sys/module/nvidia_drm/parameters/fbdev)
+
+                    if [ "$MODESET_STATUS" = "N" ];
+                    then
+                        echo "options nvidia_drm modeset=1" >> /etc/modprobe.d/nvidia.conf
+                    fi
+
+                    if [ "$FBDEV_STATUS" = "N" ];
+                    then
+                        echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+                    fi
+
+
                     # To check if it is working: 
                     # cat /sys/module/nvidia_drm/parameters/modeset
                 fi
