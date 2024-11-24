@@ -513,6 +513,25 @@ install_sd_boot_pkgs(){
     install_aur_package "https://aur.archlinux.org/systemd-boot-pacman-hook.git"
 }
 
+# $1: Number of the snapshot
+btrfs_snapshot(){
+    local -r TARGET_DEV=$(mount | grep -i "on / type" | cut -f1 -d" " )
+    local -r UUID=$(blkid -s UUID -o value "$TARGET_DEV")
+    local -r SNAP_NUM="$1"
+
+    if ! btrfs subvolume list / | grep "@tmp_snaps" > /dev/null;
+    then
+        mount UUID="$UUID" /mnt -o compress-force=zstd
+        btrfs subvolume create "/mnt/@tmp_snaps"
+        umount /mnt
+    fi
+
+    # Create the snapshot
+    mount UUID="$UUID" /mnt -o compress-force=zstd
+    btrfs subvolume snapshot -r "/mnt/@" "/mnt/@tmp_snaps/$SNAP_NUM"
+    umount /mnt    
+}
+
 # https://wiki.archlinux.org/title/Xorg
 # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
 install_xorg(){
@@ -1441,6 +1460,9 @@ main(){
 
     # Source var files
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
+
+    # First, make a btrfs snapshot, just in case something goes wrong"
+    [ "$root_fs" = "btrfs" ] && btrfs_snapshot "$log_step"
 
     case $log_step in
         0)
