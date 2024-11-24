@@ -1136,6 +1136,14 @@ rootless_kde(){
     fi
 }
 
+# https://wiki.archlinux.org/title/SDDM#Theme_settings
+breeze_sddm(){
+    colored_msg "Changing SDDM theme to Breeze..." "${BRIGHT_CYAN}" "#"
+
+    echo "[Theme]" > /etc/sddm.conf.d/sddm-theme.conf
+    echo "Current=breeze" >> /etc/sddm.conf.d/sddm-theme.conf
+}
+
 cleanup(){
     rm -rf /root/after_install.tmp
 }
@@ -1493,8 +1501,12 @@ main(){
             ;;
 
         1)
-            # CHECK FOR ROOTLESS WAYLAND!!!
-            rootless_kde
+            if [ "$is_kde" -eq "$TRUE" ];
+            then
+                # CHECK FOR ROOTLESS WAYLAND!!!
+                rootless_kde
+                ask "Do you want to change the default theme of SDDM to breeze?" && breeze_sddm
+            fi
 
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
             ask "Do you want to install Plymouth (boot splash, not recommended)?" && install_plymouth
