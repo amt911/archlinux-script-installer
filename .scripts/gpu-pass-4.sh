@@ -56,6 +56,11 @@ set -x\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
             echo "" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
         fi
 
+        if systemctl list-units --all | grep -i "coolercontrold" > /dev/null;
+        then
+            echo "systemctl stop coolercontrold.service" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
+        fi
+
         echo -e "systemctl stop display-manager\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/prepare/begin/start.sh"
     fi
 
@@ -88,6 +93,11 @@ modprobe nvidia\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
     if [ "$is_laptop" -eq "$FALSE" ];
     then
         echo -e "systemctl start display-manager\n" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
+
+        if systemctl list-units --all | grep -i "coolercontrold" > /dev/null;
+        then
+            echo "systemctl start coolercontrold.service" >> "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
+        fi        
     fi
 
     chmod +x "/etc/libvirt/hooks/qemu.d/$VM_NAME/release/end/stop.sh"
