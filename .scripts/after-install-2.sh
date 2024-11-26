@@ -591,32 +591,6 @@ install_xorg(){
                         pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
                     fi
                 fi
-                
-
-                if [ "$is_laptop" -eq "$FALSE" ];
-                then
-                    # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
-                    # https://superuser.com/questions/577307/how-to-get-a-list-of-active-drivers-that-are-statically-built-into-the-linux-ker
-                    # We can put the kernel module config in modprobe.d since they are not compiled in the kernel, they are in fact external, so they can be modified using a modprobe file. The following link says so:
-                    # https://wiki.archlinux.org/title/Kernel_module#Using_kernel_command_line
-                    
-                    local -r MODESET_STATUS=$(cat /sys/module/nvidia_drm/parameters/modeset)
-                    local -r FBDEV_STATUS=$(cat /sys/module/nvidia_drm/parameters/fbdev)
-
-                    if [ "$MODESET_STATUS" = "N" ];
-                    then
-                        echo "options nvidia_drm modeset=1" >> /etc/modprobe.d/nvidia.conf
-                    fi
-
-                    if [ "$FBDEV_STATUS" = "N" ];
-                    then
-                        echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
-                    fi
-
-
-                    # To check if it is working: 
-                    # cat /sys/module/nvidia_drm/parameters/modeset
-                fi
                 ;;
             *)
                 echo -e "${RED}Unknown error. Exiting...${NO_COLOR}"
@@ -627,6 +601,36 @@ install_xorg(){
 
     # I do not disable kms HOOK because nvidia-utils blacklists nouveau by default.
     # Blacklisting location: /usr/lib/modprobe.d/nvidia-utils-beta.conf 
+}
+
+
+add_nvidia_modprobe_config(){
+    colored_msg "Checking whether it is needed to add modprobe files to NVIDIA GPU..." "${BRIGHT_CYAN}" "#"
+
+    if [ "$is_laptop" -eq "$FALSE" ];
+    then
+        # https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+        # https://superuser.com/questions/577307/how-to-get-a-list-of-active-drivers-that-are-statically-built-into-the-linux-ker
+        # We can put the kernel module config in modprobe.d since they are not compiled in the kernel, they are in fact external, so they can be modified using a modprobe file. The following link says so:
+        # https://wiki.archlinux.org/title/Kernel_module#Using_kernel_command_line
+        
+        local -r MODESET_STATUS=$(cat /sys/module/nvidia_drm/parameters/modeset)
+        local -r FBDEV_STATUS=$(cat /sys/module/nvidia_drm/parameters/fbdev)
+
+        if [ "$MODESET_STATUS" = "N" ];
+        then
+            echo "options nvidia_drm modeset=1" >> /etc/modprobe.d/nvidia.conf
+        fi
+
+        if [ "$FBDEV_STATUS" = "N" ];
+        then
+            echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
+        fi
+
+
+        # To check if it is working: 
+        # cat /sys/module/nvidia_drm/parameters/modeset
+    fi
 }
 
 install_kde(){
@@ -1152,6 +1156,11 @@ rootless_kde(){
 breeze_sddm(){
     colored_msg "Changing SDDM theme to Breeze..." "${BRIGHT_CYAN}" "#"
 
+    if [ ! -d "/etc/sddm.conf.d" ];
+    then
+        mkdir -p "/etc/sddm.conf.d"
+    fi
+
     echo "[Theme]" > /etc/sddm.conf.d/sddm-theme.conf
     echo "Current=breeze" >> /etc/sddm.conf.d/sddm-theme.conf
 }
@@ -1507,12 +1516,21 @@ main(){
             # CHECK INSTALL_XORG ON LAPTOP. 
             ask "Do you want to install Xorg and graphics driver?" && install_xorg
 
-            ask "Do you want to install KDE?" && install_kde
             add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"
             ask_reboot
             ;;
 
         1)
+            is_element_in_array "nvidia" gpu_type && add_nvidia_modprobe_config
+            ask "Do you want to install KDE?" && install_kde
+
+
+            # REBOOT
+            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
+            ask_reboot
+            ;;
+
+        2)
             if [ "$is_kde" -eq "$TRUE" ];
             then
                 # CHECK FOR ROOTLESS WAYLAND!!!
@@ -1522,13 +1540,6 @@ main(){
 
             ask "Do you want to install a cpu scaler?" && install_cpu_scaler
             ask "Do you want to install Plymouth (boot splash, not recommended)?" && install_plymouth
-
-            # REBOOT
-            add_global_var_to_file "log_step" "$((log_step+1))" "$VAR_FILE_LOC"            
-            ask_reboot
-            ;;
-
-        2)
             ask "Do you want to enable OOM Killer (systemd-oomd)?" && enable_oomd
             ask "Do you want to install the printer service?" && install_printer
             ask "Do you want to install a firewall?" && install_firewall
