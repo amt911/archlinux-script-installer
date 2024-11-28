@@ -1270,6 +1270,12 @@ enable_fan_control(){
     local -r USER=$(get_sudo_user)
     colored_msg "Installing Fan Control software..." "${BRIGHT_CYAN}" "#"
 
+    echo -e "${BRIGHT_CYAN}Installing lm_sensors...${NO_COLOR}"
+    sudo -S -i -u "$USER" yay -S lm_sensors
+
+    # This is needed so CoolerControl can detect missing sensors
+    sensors-detect
+
     echo -e "${BRIGHT_CYAN}Installing CoolerControl...${NO_COLOR}"
     sudo -S -i -u "$USER" yay -S coolercontrol-bin
 
