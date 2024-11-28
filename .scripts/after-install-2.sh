@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("calf" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("darktable" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -1368,7 +1368,7 @@ install_autoeq(){
 
     local -r USER=$(get_sudo_user)
     
-    sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins
+    sudo -S -i -u "$USER" yay -S easyeffects lsp-plugins calf
 }
 
 update_gendb(){
