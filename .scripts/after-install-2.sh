@@ -621,12 +621,12 @@ add_nvidia_modprobe_config(){
         local -r MODESET_STATUS=$(cat /sys/module/nvidia_drm/parameters/modeset)
         local -r FBDEV_STATUS=$(cat /sys/module/nvidia_drm/parameters/fbdev)
 
-        if [ "$MODESET_STATUS" = "N" ];
+        if [ "$MODESET_STATUS" != "Y" ];
         then
             echo "options nvidia_drm modeset=1" >> /etc/modprobe.d/nvidia.conf
         fi
 
-        if [ "$FBDEV_STATUS" = "N" ];
+        if [ "$FBDEV_STATUS" != "Y" ];
         then
             echo "options nvidia_drm fbdev=1" >> /etc/modprobe.d/nvidia.conf
         fi
