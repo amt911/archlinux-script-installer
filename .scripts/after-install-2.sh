@@ -395,6 +395,15 @@ The following adapters are configured:
     fi
 }
 
+
+install_udev_rules(){
+    cp additional_resources/udev_rules/1-qudelix.rules /etc/udev/rules.d/
+
+
+    udevadm trigger
+    udevadm control --reload    
+}
+
 # https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
 # https://wiki.archlinux.org/title/CPU_frequency_scaling#Scaling_drivers
 # https://wiki.archlinux.org/title/CPU_frequency_scaling#amd_pstate
@@ -1593,6 +1602,8 @@ main(){
             ask "Do you want to install EasyEffects (for AutoEq)?" && install_autoeq
             ask "Do you want to install optional packages?" && install_optional_pkgs
             ask "Do you want to install printer specific drivers? (only if IPP is not working as intended)" && install_printer_drivers
+            ask "Do you want to install additional udev rules?" && install_udev_rules
+            
             [ "$is_laptop" -eq "$FALSE" ] && ask "Do you want to enable fan control?" && enable_fan_control
             
             if [ "$is_laptop" -eq "$TRUE" ] && is_element_in_array "nvidia" "gpu_type";
