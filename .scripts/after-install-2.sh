@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("syncthing" "darktable" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "p7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("syncthing" "darktable" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -818,10 +818,10 @@ install_ms_fonts(){
 
     local is_7z_installed="$TRUE"
 
-    pacman -Qi p7zip
+    pacman -Qi 7zip
     is_7z_installed="$?"
 
-    [ "$is_7z_installed" -eq "$FALSE" ] && pacman --noconfirm -S p7zip
+    [ "$is_7z_installed" -eq "$FALSE" ] && pacman --noconfirm -S 7zip
 
     # In case the image is in another partition
     ask "Is the Windows ISO on another drive?"
@@ -883,7 +883,7 @@ install_ms_fonts(){
     echo -e "${BRIGHT_CYAN}Deleting Windows image and tmp directories...${NO_COLOR}"
     rm -r "$ISO_LOCATION" "/root/install.wim" "/root/fonts"
 
-    # [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs p7zip
+    # [ "$is_7z_installed" -eq "$FALSE" ] && pacman -Rs 7zip
 }
 
 install_lsd(){
