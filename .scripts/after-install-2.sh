@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OPTIONAL_PKGS=("brasero" "asunder" "xpadneo-dkms" "syncthing" "darktable" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
+OPTIONAL_PKGS=("lrcget-bin" "brasero" "asunder" "xpadneo-dkms" "syncthing" "darktable" "rclone" "strawberry" "rsync" "yazi" "discord" "handbrake" "kdiskmark" "tmux" "chromium" "picard" "spek" "ghex" "7zip" "unrar" "lazygit" "fastfetch" "jdownloader2" "meld" "neofetch" "gparted" "bc" "wget" "dosfstools" "iotop-c" "less" "nano" "man-db" "git" "optipng" "oxipng" "pngquant" "imagemagick" "veracrypt" "gimp" "inkscape" "tldr" "fzf" "lsd" "bat" "keepassxc" "shellcheck" "btop" "htop" "fdupes" "firefox" "rebuild-detector" "reflector" "sane" "sane-airscan" "simple-scan" "evince" "qbittorrent" "fdupes" "gdu" "unzip" "visual-studio-code-bin" "exfatprogs")
 readonly OPTIONAL_PKGS_BTRFS=("btdu" "compsize" "jdupes" "duperemove")
 
 # COMPROBAR LA INSTALACION DE ESTE PAQUETE, LE FALTAN LAS FUENTES
@@ -1632,6 +1632,7 @@ main(){
     echo "Disable automatic sleeping, screen shutoff and screen locking on Plasma"
     echo -e "${GREEN}KVM Guests${NO_COLOR} -> Install spice-vdagent to share clipboard or use the iso image and install it on Windows."
     echo "Refer to this link for more information: https://wiki.archlinux.org/title/QEMU#Enabling_SPICE_support_on_the_guest"
+    echo -e "If lrcget doesn't work (opens and closes back) you can execute it in a terminal like so: ${YELLOW}WEBKIT_DISABLE_COMPOSITING_MODE=1 LRCGET${NO_COLOR}"
     
     if [ "$is_laptop" -eq "$FALSE" ];
     then
