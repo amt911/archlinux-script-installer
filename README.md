@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This repository is a collection of scripts used to install ArchLinux (almost) unattended, adjusting to my personal configuration, which is:
+This repository is a collection of scripts used to install ArchLinux (almost) unattended and to create VMs passing the only NVIDIA GPU. It adjusts to my personal configuration, which is:
 
 - Multiple filesystem configurations:
   - Encrypted (with the possibility of decrypting using a pendrive) and unencrypted systems.
