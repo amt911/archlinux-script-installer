@@ -1118,15 +1118,13 @@ Select one of the following options:
     mkinitcpio -P
 
 
-    # !!!
     # We need to add a new kernel parameter.
     # First, we check if rd.luks.options exists.
-    if grep -i "rd.luks.options" /etc/default/grub > /dev/null;
+    if (grep -i "rd.luks.options" /etc/default/grub &> /dev/null) || (grep -i "rd.luks.options" /boot/loader/entries/arch.conf &> /dev/null);
     then
         # If the entry exists, we add a new parameter inside
         echo -e "${BRIGHT_CYAN}The entry exists. Adding new option.${NO_COLOR}"
 
-        # !!!
         if [ "$bootloader" = "grub" ];
         then
             add_option_inside_luks_options "keyfile-timeout=10s" "/etc/default/grub" "$TRUE"
