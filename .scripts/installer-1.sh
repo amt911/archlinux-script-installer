@@ -628,12 +628,12 @@ install_bootloader(){
         then
             local -r ROOT_UUID=$(blkid -s UUID -o value "/dev/$DM_NAME")
 
-            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
-            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME} rw" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "rd.luks.name=${ROOT_UUID}=${DM_NAME} root=/dev/mapper/${DM_NAME} rw" "/mnt/boot/loader/entries/arch-fallback.conf"
 
         else
-            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch.conf"
-            add_option_bootloader "root=/dev/${DM_NAME}" "/mnt/boot/loader/entries/arch-fallback.conf"
+            add_option_bootloader "root=/dev/${DM_NAME} rw" "/mnt/boot/loader/entries/arch.conf"
+            add_option_bootloader "root=/dev/${DM_NAME} rw" "/mnt/boot/loader/entries/arch-fallback.conf"
         fi
 
         # If the filesystem is btrfs, we add the necessary rootflags
