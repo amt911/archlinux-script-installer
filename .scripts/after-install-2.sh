@@ -527,21 +527,40 @@ install_sd_boot_pkgs(){
 }
 
 # $1: Number of the snapshot
-btrfs_snapshot(){
+make_btrfs_install_snapshot(){
     local -r TARGET_DEV=$(mount | grep -i "on / type" | cut -f1 -d" " )
     local -r UUID=$(blkid -s UUID -o value "$TARGET_DEV")
     local -r SNAP_NUM="$1"
 
+    # Mount the root btrfs subvolume
+    mount UUID="$UUID" /mnt -o compress-force=zstd
+
+    # If the subvolume snapshot does not exist, create it
     if ! btrfs subvolume list / | grep "@tmp_snaps" > /dev/null;
     then
-        mount UUID="$UUID" /mnt -o compress-force=zstd
         btrfs subvolume create "/mnt/@tmp_snaps"
-        umount /mnt
     fi
 
-    # Create the snapshot
-    mount UUID="$UUID" /mnt -o compress-force=zstd
+    # If the bootloader subvolume does not exist, create it
+    if ! btrfs subvolume list / | grep "@tmp_snaps/bootloader_entries" > /dev/null;
+    then
+        btrfs subvolume create "/mnt/@tmp_snaps/bootloader_entries"
+    fi
+
+    # Create the root snapshot
     btrfs subvolume snapshot -r "/mnt/@" "/mnt/@tmp_snaps/$SNAP_NUM"
+
+    # Create the bootloader "snapshot"
+    if [ "$bootloader" = "grub" ];
+    then
+        mkdir -p "/mnt/@tmp_snaps/bootloader_entries/grub/$SNAP_NUM"
+        cp /etc/default/grub "/mnt/@tmp_snaps/bootloader_entries/grub/$SNAP_NUM/"
+    else
+        mkdir -p "/mnt/@tmp_snaps/bootloader_entries/systemd-boot/$SNAP_NUM"
+        cp /boot/loader/entries/arch.conf "/mnt/@tmp_snaps/bootloader_entries/systemd-boot/$SNAP_NUM/"
+        cp /boot/loader/entries/arch-fallback.conf "/mnt/@tmp_snaps/bootloader_entries/systemd-boot/$SNAP_NUM/"
+    fi
+
     umount /mnt    
 }
 
@@ -1510,7 +1529,7 @@ main(){
     [ -f "$VAR_FILE_LOC" ] && source "$VAR_FILE_LOC"
 
     # First, make a btrfs snapshot, just in case something goes wrong"
-    [ "$root_fs" = "btrfs" ] && btrfs_snapshot "$log_step"
+    [ "$root_fs" = "btrfs" ] && make_btrfs_install_snapshot "$log_step"
 
     case $log_step in
         0)
