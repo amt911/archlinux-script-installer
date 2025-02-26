@@ -1,0 +1,48 @@
+{
+    "bootloader": {
+        "type": "systemd-boot",
+        "extraArguments": "bla bla bla"
+    },
+
+    "users": [
+        {
+            "user": "test1",
+            "password": "123",
+            "shell": "/bin/fish",
+            "sudoAccess": true
+        },
+        {
+            "user": "test2",
+            "password": "123",
+            "shell": "/bin/zsh",
+            "sudoAccess": false
+        }
+    ],
+
+    "services": {
+        "enable": [
+            "test1",
+            "test2"
+        ]
+    },
+
+    "filesystem": {
+        "type": "btrfs",
+        "encryption": {
+            "password": "optional bla bla bla",
+            "encryptionKeyfile": {
+                "device": "bla bla bla"
+            }
+        },
+        "wip": "There should be in here the desired subvolumes, mountpoints and also" 
+    },
+
+    "firewall": {
+        "type": "firewalld",
+        "extraRules": [
+            "bla1",
+            "bla2",
+            "bla3"
+        ]
+    }
+}
