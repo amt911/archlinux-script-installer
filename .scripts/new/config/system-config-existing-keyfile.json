@@ -1,0 +1,72 @@
+{
+    "bootloader": {
+        "type": "systemd-boot",
+        "extraArguments": "bla bla bla"
+    },
+
+    "users": [
+        {
+            "user": "test1",
+            "password": "123",
+            "shell": "/bin/fish",
+            "sudoAccess": true
+        },
+        {
+            "user": "test2",
+            "password": "123",
+            "shell": "/bin/zsh",
+            "sudoAccess": false
+        }
+    ],
+
+    "services": {
+        "enable": [
+            "test1",
+            "test2"
+        ]
+    },
+
+    "filesystem": {
+        "type": "btrfs",
+        "encryption": {
+            "password": "optional bla bla bla",
+            "encryptionKeyfile": {
+                "device": "bla bla bla",
+                "formatDevice": false
+                // Optional: If it does not exist it will create a new keyfile
+                // "keyfileLocation": "bla bla bla"
+            }
+        },
+        "wip": "There should be in here the desired subvolumes, mountpoints and also" 
+    },
+
+    "firewall": {
+        "type": "firewalld",
+        "extraRules": [
+            "bla1",
+            "bla2",
+            "bla3"
+        ]
+    },
+
+    "enableMicrocode": true,
+
+    "network": "NetworkManager",
+
+    "enableWireguard": true,
+
+    "locales": [
+        "en_US.UTF-8 UTF-8",
+        "es_ES.UTF-8 UTF-8"
+    ],
+
+    "desiredLocale": "es_ES.UTF-8 UTF-8",
+
+    "region": {
+        "continent": "Europe",
+        "region": "Madrid"
+    },
+
+    "enableNTP": true,
+
+}
