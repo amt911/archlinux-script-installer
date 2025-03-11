@@ -1,8 +1,8 @@
 {
     "bootloader": {
         "type": "systemd-boot",
-        "enableREISUB": true,
-        "extraArguments": "bla bla bla (for example krom keyboard)"
+        "enable_reisub": true,
+        "extra_arguments": "bla bla bla (for example krom keyboard)"
     },
 
     "users": [
@@ -10,43 +10,50 @@
             "user": "test1",
             "password": "123",
             "shell": "/bin/fish",
-            "sudoAccess": true
+            "sudo_access": true
         },
         {
             "user": "test2",
             "password": "123",
             "shell": "/bin/zsh",
-            "sudoAccess": false
+            "sudo_access": false
         }
     ],
 
-    "extraServices": {
+    "extra_services": {
         "enable": [
             "test1",
             "test2"
         ]
     },
 
-    "filesystem": {
-        "type": "btrfs",
-        "encryption": {
-            "password": "optional bla bla bla",
-            "encryptionKeyfile": {
-                "device": "bla bla bla",
-                "formatDevice": false                
+    "partitioning": {
+        "device": "/dev/blablabla",
+        "partitions": [
+            {
+                "filesystem": {
+                    "type": "btrfs",
+                    "encryption": {
+                        "password": "optional bla bla bla",
+                        "encryption_keyfile": {
+                            "device": "bla bla bla",
+                            "format_device": false                
+                        }
+                    },
+                    "wip": "There should be in here the desired subvolumes, mountpoints and also" 
+                }
             }
-        },
-        "wip": "There should be in here the desired subvolumes, mountpoints and also" 
+        ]
     },
 
-    "enableMicrocode": true,
+    "enable_microcode": true,
 
     "network": {
         "type": "NetworkManager",
-        "enableWireguard": true,
+        "enable_wireguard": true,
         "firewall": {
             "type": "firewalld",
-            "extraRules": [
+            "extra_rules": [
                 "bla1",
                 "bla2",
                 "bla3"
@@ -55,23 +62,23 @@
     },
 
     "locales": {
-        "selectedLocales": [
+        "selected_locales": [
         "en_US.UTF-8 UTF-8",
         "es_ES.UTF-8 UTF-8"
         ],
-        "desiredLocale": "es_ES.UTF-8 UTF-8"
+        "desired_locale": "es_ES.UTF-8 UTF-8"
     },
 
-    "region": {
-        "continent": "Europe",
-        "region": "Madrid"
+    "timezone": {
+        "region": "Europe",
+        "city": "Madrid"
     },
 
     "enableNTP": true,
 
-    "enableMakepkgMultiCore": true,
+    "enable_makepkg_multi_core": true,
 
-    "virtManager": {
+    "virt_manager": {
         "enabled": true,
         "users": [
             "andres"
