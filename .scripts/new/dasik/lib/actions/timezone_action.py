@@ -25,3 +25,11 @@ class TimezoneAction(AbstractAction):
     
     def do_action(self):
         Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}"])
+        
+    @property
+    def KEY_NAME(self) -> str:
+        return self._KEY_NAME
+    
+    @property
+    def can_incrementally_change(self) -> bool:
+        return self._can_incrementally_change        
