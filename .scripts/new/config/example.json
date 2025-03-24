@@ -7,8 +7,10 @@
         "desired_locale": "es_ES.UTF-8 UTF-8"
     },
 
-    "region": {
-        "continent": "Europe",
-        "region": "Madrid"
-    }
+    "timezone": {
+        "region": "Europe",
+        "city": "Madrid"
+    },
+
+    "enable_microcode": true
 }
