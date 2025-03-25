@@ -24,7 +24,8 @@ class TimezoneAction(AbstractAction):
         pass
     
     def do_action(self):
-        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True).stdout
+        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True)
+        Command.execute("hwclock", ["--systohc"], True)
         
     @property
     def KEY_NAME(self) -> str:
