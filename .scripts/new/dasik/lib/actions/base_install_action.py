@@ -44,3 +44,7 @@ class BaseInstallAction(AbstractAction):
     def do_action(self):
         Command.execute("pacman", ["--noconfirm", "-Sy", "archlinux-keyring"])
         Command.execute("pacstrap", ["-K", "/mnt"] + self.packages)
+        fstab_content_str = Command.execute("genfstab", ["-U", "/mnt"]).stdout.decode()
+        
+        with open("/mnt/etc/fstab", "a") as fstab:
+            fstab.write(fstab_content_str)
