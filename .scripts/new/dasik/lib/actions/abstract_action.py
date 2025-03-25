@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
 class AbstractAction(ABC):
+    # Returns True if there are changes to be made
     @abstractmethod
-    def before_check(self):
+    def _before_check(self) -> bool:
         pass
     
     @abstractmethod
@@ -21,4 +22,4 @@ class AbstractAction(ABC):
     @property
     @abstractmethod
     def KEY_NAME(self) -> str:
-        pass    
+        pass
