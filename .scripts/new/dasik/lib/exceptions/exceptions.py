@@ -1,4 +1,4 @@
 
 
-class CommandException(Exception):
+class CommandNotFoundException(Exception):
     pass

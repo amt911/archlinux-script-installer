@@ -4,5 +4,5 @@ from .timezone_action import TimezoneAction
 class ActionsHandler:
     def __init__(self, filename : str):
         json_parser = JsonParser(filename)
-        example = BaseInstallAction(json_parser.debug())
-        example.do_action()
+        # BaseInstallAction(json_parser.debug()).do_action()
+        TimezoneAction(json_parser.debug()).do_action()
