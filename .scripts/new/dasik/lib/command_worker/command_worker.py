@@ -1,5 +1,5 @@
 
-from ..exceptions.exceptions import CommandException
+from ..exceptions.exceptions import CommandNotFoundException
 from shutil import which
 from os import execv
 import subprocess
@@ -14,15 +14,21 @@ class Command:
         path = which(name)
         
         if not path:
-            raise CommandException("Binary not found")
+            raise CommandNotFoundException("Binary not found")
         
         return path
     
     @staticmethod 
-    def execute(cmd : str, args : list[str]):
+    def execute(cmd : str, args : list[str], run_as_chroot : bool = False):
+        chroot_path = Command._locate_binary("arch-chroot")
         path = Command._locate_binary(cmd)
         
-        return subprocess.run([cmd, *args], stdout=subprocess.PIPE)
+        chroot_cmd = []
+        
+        if run_as_chroot:
+            chroot_cmd = [chroot_path, "/mnt"]    
+        
+        return subprocess.run(chroot_cmd + [cmd, *args], stdout=subprocess.PIPE)
         
         # execv(path, [args])
         

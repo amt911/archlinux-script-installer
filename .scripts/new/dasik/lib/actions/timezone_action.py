@@ -14,8 +14,8 @@ class TimezoneAction(AbstractAction):
         self._KEY_NAME = "timezone"
         self._can_incrementally_change = True
         
-        self.region : str = prop["region"]
-        self.city : str = prop["city"]
+        self.region : str = prop[self._KEY_NAME]["region"]
+        self.city : str = prop[self._KEY_NAME]["city"]
         
     def before_check(self):
         pass
@@ -24,7 +24,7 @@ class TimezoneAction(AbstractAction):
         pass
     
     def do_action(self):
-        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}"])
+        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True).stdout
         
     @property
     def KEY_NAME(self) -> str:

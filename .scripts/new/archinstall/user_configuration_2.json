@@ -1,0 +1,152 @@
+{
+    "additional-repositories": [],
+    "archinstall-language": "English",
+    "audio_config": null,
+    "bootloader": "Systemd-boot",
+    "config_version": "3.0.2",
+    "disk_config": {
+        "config_type": "manual_partitioning",
+        "device_modifications": [
+            {
+                "device": "/dev/vda",
+                "partitions": [
+                    {
+                        "btrfs": [],
+                        "dev_path": "/dev/vda1",
+                        "flags": [],
+                        "fs_type": null,
+                        "mount_options": [],
+                        "mountpoint": null,
+                        "obj_id": "6f0ef18d-d633-4279-af94-44464731cd78",
+                        "size": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "B",
+                            "value": 5368709120
+                        },
+                        "start": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "sectors",
+                            "value": 2048
+                        },
+                        "status": "existing",
+                        "type": "primary"
+                    },
+                    {
+                        "btrfs": [],
+                        "dev_path": null,
+                        "flags": [
+                            "boot",
+                            "esp"
+                        ],
+                        "fs_type": "fat32",
+                        "mount_options": [],
+                        "mountpoint": "/boot",
+                        "obj_id": "e3e862bd-0d86-466a-aad8-22a1793bc266",
+                        "size": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "GiB",
+                            "value": 1
+                        },
+                        "start": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "B",
+                            "value": 5369757696
+                        },
+                        "status": "create",
+                        "type": "primary"
+                    },
+                    {
+                        "btrfs": [],
+                        "dev_path": null,
+                        "flags": [
+                            "swap"
+                        ],
+                        "fs_type": "linux-swap",
+                        "mount_options": [],
+                        "mountpoint": null,
+                        "obj_id": "17e3cdc3-afd8-4014-9040-f5930da51c73",
+                        "size": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "GiB",
+                            "value": 2
+                        },
+                        "start": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "B",
+                            "value": 6443499520
+                        },
+                        "status": "create",
+                        "type": "primary"
+                    },
+                    {
+                        "btrfs": [],
+                        "dev_path": null,
+                        "flags": [],
+                        "fs_type": "btrfs",
+                        "mount_options": [],
+                        "mountpoint": null,
+                        "obj_id": "a406a712-8bd6-4fb9-a159-c6b03d45c3fe",
+                        "size": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "B",
+                            "value": 12882804736
+                        },
+                        "start": {
+                            "sector_size": {
+                                "unit": "B",
+                                "value": 512
+                            },
+                            "unit": "B",
+                            "value": 8590983168
+                        },
+                        "status": "create",
+                        "type": "primary"
+                    }
+                ],
+                "wipe": false
+            }
+        ]
+    },
+    "disk_encryption": null,
+    "hostname": "archlinux",
+    "kernels": [
+        "linux"
+    ],
+    "locale_config": {
+        "kb_layout": "us",
+        "sys_enc": "UTF-8",
+        "sys_lang": "en_US"
+    },
+    "mirror_config": null,
+    "network_config": {},
+    "ntp": true,
+    "packages": [],
+    "parallel downloads": 0,
+    "profile_config": null,
+    "save_config": null,
+    "swap": true,
+    "timezone": "UTC",
+    "uki": false,
+    "version": "3.0.2"
+}
