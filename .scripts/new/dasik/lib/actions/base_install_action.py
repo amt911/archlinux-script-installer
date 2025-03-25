@@ -35,8 +35,8 @@ class BaseInstallAction(AbstractAction):
     def can_incrementally_change(self) -> bool:
         return self._can_incrementally_change
     
-    def before_check(self):
-        pass
+    def _before_check(self) -> bool:
+        return True
     
     def after_check(self):
         pass

@@ -2,6 +2,7 @@ from .abstract_action import AbstractAction
 from termcolor import colored
 from sys import exit
 from ..command_worker.command_worker import Command
+from pathlib import Path
 
 class TimezoneAction(AbstractAction):
     
@@ -17,15 +18,18 @@ class TimezoneAction(AbstractAction):
         self.region : str = prop[self._KEY_NAME]["region"]
         self.city : str = prop[self._KEY_NAME]["city"]
         
-    def before_check(self):
-        pass
+    def _before_check(self) -> bool:
+        link = Path("/mnt/etc/localtime")
+        
+        return not (link.is_symlink() and link.readlink().as_posix().split("/")[4] == self.region and link.readlink().as_posix().split("/")[5] == self.city)
     
     def after_check(self):
         pass
     
     def do_action(self):
-        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True)
-        Command.execute("hwclock", ["--systohc"], True)
+        if self._before_check():
+            Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True)
+            Command.execute("hwclock", ["--systohc"], True)
         
     @property
     def KEY_NAME(self) -> str:
