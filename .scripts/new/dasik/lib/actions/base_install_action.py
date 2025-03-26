@@ -2,6 +2,7 @@ from .abstract_action import AbstractAction
 from ..command_worker.command_worker import Command
 from termcolor import colored
 
+# !!! TODO: Check for already installed packages
 class BaseInstallAction(AbstractAction):
     def __init__(self, prop : dict):
         self.packages = [ "base", "linux", "linux-firmware" ]
