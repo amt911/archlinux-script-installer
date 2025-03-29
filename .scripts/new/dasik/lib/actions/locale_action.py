@@ -11,6 +11,7 @@ class LocaleAction(AbstractAction):
         
         self._selected_locales = prop[self._KEY_NAME]["selected_locales"]
         self._desired_locale = prop[self._KEY_NAME]["desired_locale"]
+        self._desired_tty_layout = prop[self._KEY_NAME]["desired_tty_layout"]
         
     @property
     def KEY_NAME(self) -> str:
@@ -49,6 +50,20 @@ class LocaleAction(AbstractAction):
                 # If the file does not contain the selected locale, then return true
                 if re.search(rf"{re.escape(self._desired_locale)}", locale_conf_str) is None:
                     return True
+
+            tty_layout_path = Path("/mnt/etc/vconsole.conf")
+
+            # Check if the conf file exists
+            if not tty_layout_path.exists():
+                return True
+            
+            # If the file exists, check whether the content is right
+            with open("/mnt/etc/vconsole.conf", "r") as vconsole_conf:
+                vconsole_conf_str = vconsole_conf.read()
+                
+                # If the file does not contain the selected locale, then return true
+                if re.search(rf"{re.escape(self._desired_tty_layout)}", vconsole_conf_str) is None:
+                    return True
             
         return False
     
@@ -81,4 +96,7 @@ class LocaleAction(AbstractAction):
             with open("/mnt/etc/locale.conf", "w") as locale_conf:
                 locale_conf.write(f"LANG={self._desired_locale}")
                 
+            with open("/mnt/etc/vconsole.conf", "w") as vconsole_conf:
+                vconsole_conf.write(f"KEYMAP={self._desired_tty_layout}") 
+                               
             print(Command.execute("locale-gen", [], True).stdout.decode())
