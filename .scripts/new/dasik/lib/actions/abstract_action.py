@@ -4,7 +4,7 @@ class AbstractAction(ABC):
     # Returns True if there are changes to be made
     @abstractmethod
     def _before_check(self) -> bool:
-        pass
+        return True
     
     @abstractmethod
     def after_check(self):

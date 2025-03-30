@@ -13,5 +13,20 @@
         "city": "Madrid"
     },
 
-    "enable_microcode": true
+    "enable_microcode": true,
+    
+    "hostname": "test-machine33",
+
+    "network": {
+        "type": "NetworkManager",
+        "enable_wireguard": true,
+        "firewall": {
+            "type": "firewalld",
+            "extra_rules": [
+                "bla1",
+                "bla2",
+                "bla3"
+            ]
+        } 
+    }    
 }
