@@ -6,11 +6,7 @@ from termcolor import colored
 class BaseInstallAction(AbstractAction):
     def __init__(self, prop : dict):
         self.packages = [ "base", "linux", "linux-firmware" ]
-        self.enable_microcode = False
-        
-        # Check whether the user wants to install microcode
-        if "enable_microcode" in prop:
-            self.enable_microcode = prop["enable_microcode"]
+        self.enable_microcode = prop["enable_microcode"]
         
         # !!! ALSO CHECK FOR BTRFS
         self._KEY_NAME = "no_name"

@@ -15,10 +15,11 @@
 
     "enable_microcode": true,
     
-    "hostname": "test-machine33",
+    "hostname": "arch-machine33",
 
     "network": {
         "type": "NetworkManager",
+        "add_default_hosts": true,
         "enable_wireguard": true,
         "firewall": {
             "type": "firewalld",

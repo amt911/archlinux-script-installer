@@ -9,4 +9,4 @@ class JsonModel(BaseModel):
     timezone : TimezoneModel
     network : NetworkModel
     hostname : str
-    enable_microcode : bool = None
+    enable_microcode : bool = False
