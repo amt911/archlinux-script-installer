@@ -671,31 +671,31 @@ main(){
 
     mkfs_partitions
     
-    install_packages
+    # install_packages
 
-    configure_timezone
+    # configure_timezone
 
-    configure_fstab
+    # configure_fstab
 
-    generate_locales
+    # generate_locales
 
-    write_keymap
+    # write_keymap
 
-    net_config
+    # net_config
 
-    configure_mkinitcpio
+    # configure_mkinitcpio
     
-    [ "$has_swap" -eq "$TRUE" ] && configure_swap
+    # [ "$has_swap" -eq "$TRUE" ] && configure_swap
 
-    set_password
+    # set_password
 
-    install_bootloader
+    # install_bootloader
     
     # install_ssh
 
-    echo -e "${GREEN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
+    # echo -e "${GREEN}Basic installation completed!.${NO_COLOR} Now boot to root user and continue with the installation"
 
-    cp -r /root/.scripts /mnt/root/.scripts
+    # cp -r /root/.scripts /mnt/root/.scripts
 }
 
 main "$@"

@@ -13,12 +13,12 @@ class JsonParser:
                 try:
                     json_data = json.load(json_file)
                     
-                    JsonModel.model_validate(json_data)
+                    json_validated_data = JsonModel.model_validate(json_data)
                 except ValidationError as e:
                     print(e)
                     exit(2)
                     
-                self._data = json_data
+                self._data = json_validated_data.model_dump()
                 
         except FileNotFoundError:
             print(colored("File does not exist!", "red"))
