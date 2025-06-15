@@ -606,7 +606,7 @@ install_xorg(){
                         install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
                     else
                         echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                        pacman --noconfirm -S nvidia-open-dkms lib32-nvidia-utils nvidia-settings
+                        pacman --noconfirm -S nvidia-open-dkms nvidia-utils lib32-nvidia-utils nvidia-settings
                     fi
                 else
                     if ask "Do you want to install NVIDIA beta packages?";
@@ -620,7 +620,7 @@ install_xorg(){
                         install_aur_package "https://aur.archlinux.org/lib32-nvidia-utils-beta.git"
                     else
                         echo -e "${BRIGHT_CYAN}Installing nvidia drivers...${NO_COLOR}"
-                        pacman --noconfirm -S nvidia-dkms lib32-nvidia-utils nvidia-settings
+                        pacman --noconfirm -S nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings
                     fi
                 fi
                 ;;
