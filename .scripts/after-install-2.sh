@@ -93,6 +93,13 @@ install_shells(){
 
     sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
 
+    # Check whether the sudoers file is syntactically correct
+    if ! visudo -c;
+    then
+        echo -e "${RED}Error while parsing sudoers. Exiting...${NO_COLOR}"
+        exit 1
+    fi
+
     echo -e "${BRIGHT_CYAN}Check if everything is OK${NO_COLOR}"
     grep -i "%wheel" /etc/sudoers
     sleep 3

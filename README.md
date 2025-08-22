@@ -17,7 +17,6 @@ This repository is a collection of scripts used to install ArchLinux (almost) un
 
 The scripts are not fully automated as I would like and they do very cuestionable things to setup the system, such as:
 
-- Modifying ```sudo``` without ```visudo```.
 - Missing some error checking.
   
 
