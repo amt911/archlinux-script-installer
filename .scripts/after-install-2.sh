@@ -19,7 +19,7 @@ readonly WINE_PKGS=("wine-staging" "wine-gecko" "wine-mono" "lib32-pipewire" "li
 
 readonly GAMING_PKGS=("steam" "lutris" "protontricks" "zenity" "mangohud" "lib32-mangohud")
 
-readonly EMU_PKGS=("rpcs3-bin" "dolphin-emu")
+readonly EMU_PKGS=("rpcs3-git" "dolphin-emu")
 
 # for i in "/run/media/user/Ventoy/scripts"/*; do ln -sf "$i" "/root/$(echo $i | cut -d/ -f7)"; done
 
