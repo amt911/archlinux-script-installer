@@ -1,5 +1,5 @@
 from .abstract_action import AbstractAction
-from termcolor import colored
+from colorama import Fore, Style, init
 from sys import exit
 from ..command_worker.command_worker import Command
 from pathlib import Path
@@ -7,9 +7,10 @@ from pathlib import Path
 class TimezoneAction(AbstractAction):
     
     def __init__(self, prop : dict):
+        init(autoreset=True)
         # Mandatory properties check
         if any(key in prop for key in ("continent", "region")):
-            print(colored("Mandatory keys do not exist for region.", "red"))
+            print(Fore.RED + "Mandatory keys do not exist for region." + Style.RESET_ALL)
             exit(1)
         
         self._KEY_NAME = "timezone"

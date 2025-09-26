@@ -1,6 +1,6 @@
 from .abstract_action import AbstractAction
 from ..command_worker.command_worker import Command
-from termcolor import colored
+from colorama import Fore, Style, init
 
 # !!! TODO: Check for already installed packages
 class BaseInstallAction(AbstractAction):
@@ -12,16 +12,16 @@ class BaseInstallAction(AbstractAction):
         self._KEY_NAME = "no_name"
         self._can_incrementally_change = True
         
+        init(autoreset=True)
         if self.enable_microcode:
             with open("/proc/cpuinfo", "r") as cpuinfo:
                 content = cpuinfo.read()
-                
                 if "AuthenticAMD" in content:
                     self.packages += [ "amd-ucode" ]
                 elif "GenuineIntel" in content:
                     self.packages += [ "intel-ucode" ]
                 else:
-                    print(colored("Unknown CPU Vendor. Exiting...", "red"))
+                    print(Fore.RED + "Unknown CPU Vendor. Exiting..." + Style.RESET_ALL)
                     exit(1)
         
     @property

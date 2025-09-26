@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+recursive-include dasik *.py
+recursive-include config *.json
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo
+recursive-exclude * .mypy_cache

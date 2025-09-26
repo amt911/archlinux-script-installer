@@ -15,8 +15,13 @@ class NetworkAction(AbstractAction):
                               f"127.0.1.1 {self.hostname}\n")
         
     def _before_check(self) -> bool:
-        return super()._before_check()
+        with open("/mnt/etc/hostname", "r") as hostname_file:
+            hostname_file_str = hostname_file.read().strip()
+            
+            if hostname_file_str != self.hostname:
+                return True
         
+        return True
         
     def after_check(self):
         return super().after_check()
@@ -44,15 +49,29 @@ class NetworkAction(AbstractAction):
         with open("/mnt/etc/hosts", "r") as hosts_file:
             hosts_file_str = hosts_file.read()
             
-            return re.search(rf"^{re.escape(self.DEFAULT_HOSTS)}", hosts_file_str, re.MULTILINE) is None
+            hostname_str = re.search(rf"^{re.escape(self.DEFAULT_HOSTS)}", hosts_file_str, re.MULTILINE)
+                    
+            return hostname_str is None or not self.add_default_hosts
         
         return True
+    
+    def _clear_hosts_file(self):
+        with open("/mnt/etc/hosts", "r+") as hosts_file:
+            # Clear only the lines starting with loopback addresses and the hostname line
+            hosts_file_str = hosts_file.readlines()
+            
+            hosts_file.seek(0)
+            
+            for line in hosts_file_str:
+                if not re.match(r"^(127\.0\.0\.1|::1|127\.0\.1\.1)", line):
+                    hosts_file.write(line)
+                    
+            hosts_file.truncate()
     
     
     def do_action(self):
         if self._before_check():
-            print(self._check_hosts_file())
-            '''
+            self._clear_hosts_file()
             self._create_hostname_file()
             self._add_default_hosts_to_file()
             
@@ -65,7 +84,7 @@ class NetworkAction(AbstractAction):
                     
                 case _:
                     raise NetworkTypeNotFoundException
-            '''
+                
     @property
     def KEY_NAME(self) -> str:
         return self._KEY_NAME
