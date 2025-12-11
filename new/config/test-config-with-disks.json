@@ -12,14 +12,14 @@
                         "filesystem": "fat32",
                         "partition_type": "esp",
                         "mountpoint": "/boot",
-                        "format": false
+                        "format": true
                     },
                     {
                         "label": "swap",
                         "size": "8GiB",
                         "filesystem": "swap",
                         "partition_type": "linux-swap",
-                        "format": false
+                        "format": true
                     },
                     {
                         "label": "root",
@@ -28,7 +28,7 @@
                         "partition_type": "linux",
                         "mountpoint": "/",
                         "encrypt": false,
-                        "format": false,
+                        "format": true,
                         "mount_options": ["noatime"]
                     }
                 ]

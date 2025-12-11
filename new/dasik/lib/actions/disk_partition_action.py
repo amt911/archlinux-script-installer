@@ -215,7 +215,10 @@ class DiskPartitionAction(AbstractAction):
             end_str = part.get('end', '0MiB')
             # Extract numeric value
             try:
-                end_value = float(end_str.replace('MiB', '').replace('MB', ''))
+                end_value = float(end_str.replace('MiB', '').replace('MB', '').replace('GiB', '').replace('GB', ''))
+                # Convert to MiB if needed
+                if 'GiB' in end_str or 'GB' in end_str:
+                    end_value = end_value * 1024
                 current_max = float(max_end.replace('MiB', '').replace('MB', ''))
                 if end_value > current_max:
                     max_end = f"{end_value}MiB"
@@ -224,6 +227,39 @@ class DiskPartitionAction(AbstractAction):
         
         # Return the position right after the last partition
         return max_end
+    
+    def _get_disk_size_mib(self, device: str) -> float:
+        """Get the total size of the disk in MiB.
+        
+        Args:
+            device: Device path
+            
+        Returns:
+            Disk size in MiB
+        """
+        try:
+            result = Command.execute("blockdev", ["--getsize64", device])
+            stdout_str = result.stdout.decode('utf-8') if isinstance(result.stdout, bytes) else str(result.stdout)
+            size_bytes = int(stdout_str.strip())
+            size_mib = size_bytes / (1024 * 1024)
+            return size_mib
+        except Exception:
+            # Fallback: try to parse from parted
+            try:
+                result = Command.execute("parted", ["-s", device, "unit", "MiB", "print"])
+                stdout_str = result.stdout.decode('utf-8') if isinstance(result.stdout, bytes) else str(result.stdout)
+                for line in stdout_str.split('\n'):
+                    if 'Disk' in line and device in line:
+                        # Extract size from line like "Disk /dev/vda: 15360MiB"
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            size_str = parts[1].strip().split()[0]
+                            return float(size_str.replace('MiB', '').replace('MB', ''))
+            except Exception:
+                pass
+        
+        # If all else fails, return a large number
+        return 999999.0
 
     def _wipe_disk(self, device: str) -> None:
         """Wipe the entire disk.
@@ -268,9 +304,24 @@ class DiskPartitionAction(AbstractAction):
             partition_number = 1
             print("No existing partitions found, starting from partition 1")
         
-        # Get starting position
+        # Get starting position and disk size
         start = self._get_next_available_start(disk.device)
+        disk_size_mib = self._get_disk_size_mib(disk.device)
+        start_value = float(start.replace('MiB', '').replace('MB', '').replace('GiB', '').replace('GB', ''))
+        if 'GiB' in start or 'GB' in start:
+            start_value = start_value * 1024
+        
+        # Check if there's enough space
+        available_space_mib = disk_size_mib - start_value
         print(f"Starting new partitions at {start}")
+        print(f"Available space: {available_space_mib:.1f} MiB ({available_space_mib / 1024:.2f} GiB)")
+        
+        if available_space_mib < 100:  # Less than 100 MiB available
+            raise RuntimeError(
+                f"Not enough space available on {disk.device}. "
+                f"Only {available_space_mib:.1f} MiB available after existing partitions. "
+                f"Set 'wipe_disk: true' in your configuration to wipe and recreate the disk."
+            )
         
         for partition in disk.partitions:
             end = self._calculate_partition_end(start, partition.size, disk.device)
@@ -313,8 +364,8 @@ class DiskPartitionAction(AbstractAction):
         """Calculate the end position for a partition.
         
         Args:
-            start: Start position
-            size: Partition size (e.g., "100MB", "50%", "rest")
+            start: Start position (e.g., "100MiB")
+            size: Partition size (e.g., "100MiB", "50%", "rest")
             device: Device path
             
         Returns:
@@ -325,9 +376,43 @@ class DiskPartitionAction(AbstractAction):
         elif size.endswith("%"):
             return size
         else:
-            # For absolute sizes, parted will calculate from start
-            # We return the size and parted interprets it correctly
-            return size
+            # For absolute sizes, we need to calculate: start + size = end
+            # Parse start value
+            start_value = float(start.replace('MiB', '').replace('MB', '').replace('GiB', '').replace('GB', ''))
+            start_unit = 'MiB'
+            if 'GiB' in start or 'GB' in start:
+                start_unit = 'GiB'
+                if 'GB' in start:
+                    start_value = start_value * 1000 / 1024  # Convert GB to GiB
+            
+            # Parse size value
+            size_value: float = 0.0
+            size_unit = 'MiB'
+            if 'GiB' in size or 'GB' in size:
+                size_value = float(size.replace('GiB', '').replace('GB', ''))
+                size_unit = 'GiB'
+                if 'GB' in size:
+                    size_value = size_value * 1000 / 1024  # Convert GB to GiB
+            elif 'MiB' in size or 'MB' in size:
+                size_value = float(size.replace('MiB', '').replace('MB', ''))
+                size_unit = 'MiB'
+                if 'MB' in size:
+                    size_value = size_value * 1000 / 1024  # Convert MB to MiB
+            
+            # Convert everything to the same unit (MiB for consistency)
+            if start_unit == 'GiB':
+                start_value = start_value * 1024
+            if size_unit == 'GiB':
+                size_value = size_value * 1024
+            
+            # Calculate end position
+            end_value = start_value + size_value
+            
+            # Return in the most appropriate unit
+            if end_value >= 1024:
+                return f"{end_value / 1024:.1f}GiB"
+            else:
+                return f"{end_value:.1f}MiB"
 
     def _get_partition_device(self, device: str, partition_number: int) -> str:
         """Get the device path for a specific partition number.
