@@ -1,0 +1,53 @@
+{
+    "disks": {
+        "disks": [
+            {
+                "device": "/dev/vda",
+                "partition_table": "gpt",
+                "wipe_disk": false,
+                "partitions": [
+                    {
+                        "label": "boot",
+                        "size": "512MiB",
+                        "filesystem": "fat32",
+                        "partition_type": "esp",
+                        "mountpoint": "/boot",
+                        "format": false
+                    },
+                    {
+                        "label": "swap",
+                        "size": "8GiB",
+                        "filesystem": "swap",
+                        "partition_type": "linux-swap",
+                        "format": false
+                    },
+                    {
+                        "label": "root",
+                        "size": "rest",
+                        "filesystem": "ext4",
+                        "partition_type": "linux",
+                        "mountpoint": "/",
+                        "encrypt": false,
+                        "format": false,
+                        "mount_options": ["noatime"]
+                    }
+                ]
+            }
+        ]
+    },
+    "locales": {
+        "selected_locales": ["en_US.UTF-8", "es_ES.UTF-8"],
+        "desired_locale": "en_US.UTF-8",
+        "desired_tty_layout": "us"
+    },
+    "timezone": {
+        "region": "Europe",
+        "city": "Madrid"
+    },
+    "network": {
+        "type": "NetworkManager",
+        "add_default_hosts": true
+    },
+    "hostname": "archlinux-test",
+    "enable_microcode": true
+}

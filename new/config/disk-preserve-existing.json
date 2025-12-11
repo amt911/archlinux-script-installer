@@ -1,0 +1,28 @@
+{
+    "disks": [
+        {
+            "device": "/dev/sda",
+            "partition_table": "gpt",
+            "wipe_disk": false,
+            "partitions": [
+                {
+                    "label": "home",
+                    "size": "50GiB",
+                    "filesystem": "ext4",
+                    "partition_type": "linux",
+                    "mountpoint": "/home",
+                    "format": true,
+                    "mount_options": ["noatime"]
+                },
+                {
+                    "label": "data",
+                    "size": "rest",
+                    "filesystem": "ext4",
+                    "partition_type": "linux",
+                    "mountpoint": "/data",
+                    "format": true
+                }
+            ]
+        }
+    ]
+}

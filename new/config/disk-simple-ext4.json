@@ -1,0 +1,36 @@
+{
+    "disks": [
+        {
+            "device": "/dev/sda",
+            "partition_table": "gpt",
+            "wipe_disk": false,
+            "partitions": [
+                {
+                    "label": "boot",
+                    "size": "512MiB",
+                    "filesystem": "fat32",
+                    "partition_type": "esp",
+                    "mountpoint": "/boot",
+                    "format": true
+                },
+                {
+                    "label": "swap",
+                    "size": "8GiB",
+                    "filesystem": "swap",
+                    "partition_type": "linux-swap",
+                    "format": true
+                },
+                {
+                    "label": "root",
+                    "size": "rest",
+                    "filesystem": "ext4",
+                    "partition_type": "linux",
+                    "mountpoint": "/",
+                    "encrypt": false,
+                    "format": true,
+                    "mount_options": ["noatime"]
+                }
+            ]
+        }
+    ]
+}
