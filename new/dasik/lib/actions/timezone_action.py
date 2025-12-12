@@ -1,41 +1,79 @@
+from typing import Dict, Any
 from .abstract_action import AbstractAction
-from colorama import Fore, Style, init
-from sys import exit
 from ..command_worker.command_worker import Command
 from pathlib import Path
 
+
 class TimezoneAction(AbstractAction):
+    """Configure system timezone."""
     
-    def __init__(self, prop : dict):
-        init(autoreset=True)
-        # Mandatory properties check
-        if any(key in prop for key in ("continent", "region")):
-            print(Fore.RED + "Mandatory keys do not exist for region." + Style.RESET_ALL)
-            exit(1)
+    def __init__(self, config: Dict[str, Any], context=None):
+        """Initialize timezone action.
         
-        self._KEY_NAME = "timezone"
-        self._can_incrementally_change = True
+        Args:
+            config: Timezone configuration dict with 'region' and 'city'
+            context: Shared action context (unused by this action)
+        """
+        super().__init__(config, context)
+        self.region: str = config["region"]
+        self.city: str = config["city"]
+    
+    @property
+    def name(self) -> str:
+        """Return action name."""
+        return "Timezone Configuration"
+    
+    def is_needed(self) -> bool:
+        """Check if timezone needs to be configured.
         
-        self.region : str = prop[self._KEY_NAME]["region"]
-        self.city : str = prop[self._KEY_NAME]["city"]
-        
-    def _before_check(self) -> bool:
+        Returns:
+            True if current timezone differs from desired configuration
+        """
         link = Path("/mnt/etc/localtime")
         
-        return not (link.is_symlink() and link.readlink().as_posix().split("/")[4] == self.region and link.readlink().as_posix().split("/")[5] == self.city)
-    
-    def after_check(self):
-        pass
-    
-    def do_action(self):
-        if self._before_check():
-            Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True)
-            Command.execute("hwclock", ["--systohc"], True)
+        # Check if symlink exists and points to correct timezone
+        if not link.exists():
+            return True
         
-    @property
-    def KEY_NAME(self) -> str:
-        return self._KEY_NAME
+        if not link.is_symlink():
+            return True
+        
+        try:
+            target = link.readlink()
+            parts = target.as_posix().split("/")
+            
+            # Expected format: /usr/share/zoneinfo/Region/City
+            if len(parts) < 6:
+                return True
+            
+            current_region = parts[4]
+            current_city = parts[5]
+            
+            return current_region != self.region or current_city != self.city
+        except Exception:
+            # If we can't read the link, assume we need to set it
+            return True
     
-    @property
-    def can_incrementally_change(self) -> bool:
-        return self._can_incrementally_change        
+    def execute(self) -> None:
+        """Configure the timezone."""
+        print(f"Setting timezone to {self.region}/{self.city}...")
+        Command.execute("ln", ["-sf", f"/usr/share/zoneinfo/{self.region}/{self.city}", "/etc/localtime"], True)
+        Command.execute("hwclock", ["--systohc"], True)
+    
+    def verify(self) -> bool:
+        """Verify timezone was set correctly.
+        
+        Returns:
+            True if timezone is correctly configured
+        """
+        link = Path("/mnt/etc/localtime")
+        
+        if not link.is_symlink():
+            return False
+        
+        try:
+            target = link.readlink()
+            parts = target.as_posix().split("/")
+            return len(parts) >= 6 and parts[4] == self.region and parts[5] == self.city
+        except Exception:
+            return False        

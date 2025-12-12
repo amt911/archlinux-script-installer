@@ -7,3 +7,6 @@ DONE - La particion swap la encripta de manera innecesaria.
 
 
 after install
+
+
+Vale, pero a ver, me gustaria hacer algo similar a nixos, que si ejecuto varias veces el mismo json no se modifique nada en el sistema. Tambien creo que como lo has hecho ahora genera una clase ActionsHandler demasiado grande, podrias ayudarme a mejorarlo? El caso es que me gusta como funciona ahora, pero hay que tener en cuenta que puede haber mas campos opcionales, no solo el des disco
