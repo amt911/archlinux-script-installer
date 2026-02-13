@@ -1,0 +1,162 @@
+{
+  "metadata": {
+    "profile": "megamix-sample",
+    "description": "Fichero de prueba 'megamix' que mezcla opciones reales para testing"
+  },
+
+  "users": [
+    { "username": "alice", "password": "P@ssw0rd123!", "shell": "/bin/zsh", "groups": ["wheel", "libvirt", "docker"] },
+    { "username": "bob", "password": "S3cret!bob", "shell": "/bin/bash", "groups": ["wheel", "audio"] },
+    { "username": "service", "password": "changeme", "shell": "/sbin/nologin", "groups": [] }
+  ],
+
+  "drivers": ["nvidia", "nvidia_old", "intel", "amd"],
+
+  "packages": [
+    "base",
+    "linux",
+    "linux-firmware",
+    "git",
+    "htop",
+    "neofetch",
+    "vlc",
+    "steam",
+    "mangohud",
+    "rpcs3-git",
+    "dolphin-emu",
+    "visual-studio-code-bin",
+    "aur-yay",
+    "aur-onlyoffice-bin",
+    "aur-mangohud",
+    "aur-rpcs3-git",
+    "aur-openrgb"
+  ],
+
+  "udev_rules": [
+    "# TP-Link UB400 adapter rule\nACTION==\"add\", SUBSYSTEM==\"usb\", ATTR{idVendor}==\"0bda\", ATTR{idProduct}==\"c821\", MODE=\"0666\"",
+    "# KROM Kreator example rule\nACTION==\"add\", SUBSYSTEM==\"usb\", ATTR{idVendor}==\"5566\", ATTR{idProduct}==\"0008\", MODE=\"0666\""
+  ],
+
+  "modprobe_conf": [
+    "# nvidia recommended options\noptions nvidia_drm modeset=1\noptions nvidia_drm fbdev=1",
+    "# virtio modules tuning\noptions virtio_pci disable_legacy=1"
+  ],
+
+  "profile_d": [
+    "# laptop_hw_acc.sh example\nexport LIBVA_DRIVER_NAME=nvidia\nexport MOZ_DISABLE_RDD_SANDBOX=1\n",
+    "# environment for snapping apps\nexport GTK_THEME=Adwaita:dark\n"
+  ],
+
+  "etc_environment": [
+    "LIBVA_DRIVER_NAME=nvidia",
+    "MOZ_DISABLE_RDD_SANDBOX=1",
+    "NVD_BACKEND=direct",
+    "GTK_THEME=Adwaita:dark"
+  ],
+
+  "systemd": {
+    "enable_units": [
+      "NetworkManager.service",
+      "libvirtd.service",
+      "virtlogd.service",
+      "cups.service",
+      "fstrim.timer"
+    ],
+    "enable_sockets": ["cups.socket"]
+  },
+
+  "kernel_cmdline": [
+    "rd.luks.name=UUID=ROOTUUID=cryptroot root=/dev/mapper/cryptroot rw",
+    "rootflags=compress-force=zstd,subvol=@",
+    "sysrq_always_enabled=1",
+    "intel_iommu=on"
+  ],
+
+  "enable_trim": true,
+
+  "pacman": {
+    "options": { "Parallel": true, "Color": true, "VerbosePkgLists": false },
+    "multilib": true
+  },
+
+  "bluetooth": { "enable": true, "package": "bluez" },
+
+  "hardware_acceleration": { "enable": true, "install_codecs": true },
+
+  "kvm": { "install": true },
+
+  "cups": { "install": true },
+
+  "microsoft_fonts": { "install": true, "source_iso": "/root/Windows10.iso" },
+
+  "firewall": {
+    "enable": true,
+    "remove_services": ["ssh"],
+    "rich_rules": [
+      "rule service name=\"ssh\" accept limit value=\"2/m\""
+    ],
+    "allowed_services": ["syncthing"]
+  },
+
+  "wireguard": {
+    "enable": true,
+    "interface_name": "wg0",
+    "config_content": "[Interface]\nAddress = 10.0.0.2/24\nPrivateKey = <YOUR_PRIVATE_KEY>\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = <SERVER_PUBLIC_KEY>\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 25"
+  },
+
+  "bootloader": "sd-boot",
+
+    "disks": {
+        "disks": [
+            {
+                "device": "/dev/vda",
+                "partition_table": "gpt",
+                "wipe_disk": false,
+                "partitions": [
+                    {
+                        "label": "boot",
+                        "size": "512MiB",
+                        "filesystem": "fat32",
+                        "partition_type": "esp",
+                        "mountpoint": "/boot",
+                        "format": true
+                    },
+                    {
+                        "label": "swap",
+                        "size": "8GiB",
+                        "filesystem": "swap",
+                        "partition_type": "linux-swap",
+                        "format": true
+                    },
+                    {
+                        "label": "root",
+                        "size": "rest",
+                        "filesystem": "ext4",
+                        "partition_type": "linux",
+                        "mountpoint": "/",
+                        "encrypt": false,
+                        "format": true,
+                        "mount_options": ["noatime"]
+                    }
+                ]
+            }
+        ]
+    },
+    "locales": {
+        "selected_locales": ["en_US.UTF-8", "es_ES.UTF-8"],
+        "desired_locale": "en_US.UTF-8",
+        "desired_tty_layout": "us"
+    },
+    "timezone": {
+        "region": "Europe",
+        "city": "Madrid"
+    },
+    "network": {
+        "type": "NetworkManager",
+        "add_default_hosts": true
+    },
+    "hostname": "archlinux-test",
+    "enable_microcode": true,
+
+  "notes": "Este JSON unificado mezcla paquetes AUR marcados con el prefijo 'aur-' y paquetes normales; las reglas y archivos se entregan como contenido y el instalador se encargará de crear los archivos."
+}

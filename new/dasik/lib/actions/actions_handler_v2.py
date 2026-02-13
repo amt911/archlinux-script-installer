@@ -9,6 +9,7 @@ Key improvements:
 2. Scalability: New actions can be added without modifying handler
 3. Maintainability: Each action is self-contained
 4. Flexibility: Optional actions are handled automatically
+5. Auto-derivation: mkinitcpio and kernel_cmdline are computed from disk config
 
 Usage:
     from dasik.lib.actions.actions_handler_v2 import setup_actions, execute_installation
@@ -28,54 +29,145 @@ from .action_executor import ActionExecutor
 def setup_actions() -> None:
     """Register all available system configuration actions.
     
-    This function registers all actions with the global registry.
-    Call this once at application startup.
+    Actions are registered in execution order.  The executor walks
+    them sequentially; each action decides via ``is_needed()`` whether
+    it actually runs.
     """
-    # Import action classes
+    # --- imports (lazy so missing files don't crash import) ---------------
     from .disk_partition_action import DiskPartitionAction
+    from .base_install_action import BaseInstallAction
     from .timezone_action import TimezoneAction
     from .locale_action import LocaleAction
     from .network_action import NetworkAction
-    from .base_install_action import BaseInstallAction
-    
-    # Register disk partitioning (optional)
+    from .pacman_action import PacmanAction
+    from .users_action import UsersAction
+    from .packages_action import PackagesAction
+    from .systemd_action import SystemdAction
+    from .drop_files_action import DropFilesAction
+    from .mkinitcpio_action import MkinitcpioAction
+    from .kernel_cmdline_action import KernelCmdlineAction
+    from .trim_action import TrimAction
+    from .bluetooth_action import BluetoothAction
+    from .hw_accel_action import HardwareAccelAction
+    from .kvm_action import KvmAction
+    from .cups_action import CupsAction
+    from .ms_fonts_action import MicrosoftFontsAction
+    from .firewall_action import FirewallAction
+    from .wireguard_action import WireguardAction
+
+    # === Phase 1: disk & base install =====================================
     register_action(
         action_class=DiskPartitionAction,
         config_key='disks',
-        is_optional=True  # Disks configuration is optional
+        is_optional=True,
     )
-    
-    # Register timezone configuration (optional)
+    register_action(
+        action_class=BaseInstallAction,
+        config_key='__root__',
+        is_optional=False,
+        required_fields=['enable_microcode'],
+    )
+
+    # === Phase 2: chroot configuration ====================================
     register_action(
         action_class=TimezoneAction,
         config_key='timezone',
         is_optional=True,
-        required_fields=['region', 'city']
+        required_fields=['region', 'city'],
     )
-    
-    # Register locale configuration (optional)
     register_action(
         action_class=LocaleAction,
         config_key='locales',
         is_optional=True,
-        required_fields=['selected_locales', 'desired_locale', 'desired_tty_layout']
+        required_fields=['selected_locales', 'desired_locale', 'desired_tty_layout'],
     )
-    
-    # Register network configuration (optional)
     register_action(
         action_class=NetworkAction,
         config_key='network',
         is_optional=True,
         required_fields=['type', 'add_default_hosts'],
-        depends_on=['hostname']  # Network action needs hostname from root config
+        depends_on=['hostname'],
     )
-    
-    # Register base installation (required)
     register_action(
-        action_class=BaseInstallAction,
-        config_key='__root__',  # Special key indicating this uses root-level config
-        is_optional=False,
-        required_fields=['enable_microcode']
+        action_class=PacmanAction,
+        config_key='pacman',
+        is_optional=True,
+    )
+    register_action(
+        action_class=UsersAction,
+        config_key='users',
+        is_optional=True,
+    )
+
+    # === Phase 3: package installation ====================================
+    register_action(
+        action_class=PackagesAction,
+        config_key='packages',
+        is_optional=True,
+    )
+
+    # === Phase 4: system services & files =================================
+    register_action(
+        action_class=SystemdAction,
+        config_key='systemd',
+        is_optional=True,
+    )
+    register_action(
+        action_class=DropFilesAction,
+        config_key='__root__',  # reads udev_rules, modprobe_conf, etc. from root
+        is_optional=True,
+    )
+    register_action(
+        action_class=TrimAction,
+        config_key='__root__',
+        is_optional=True,
+    )
+    register_action(
+        action_class=BluetoothAction,
+        config_key='bluetooth',
+        is_optional=True,
+    )
+    register_action(
+        action_class=HardwareAccelAction,
+        config_key='hardware_acceleration',
+        is_optional=True,
+    )
+    register_action(
+        action_class=KvmAction,
+        config_key='kvm',
+        is_optional=True,
+    )
+    register_action(
+        action_class=CupsAction,
+        config_key='cups',
+        is_optional=True,
+    )
+    register_action(
+        action_class=MicrosoftFontsAction,
+        config_key='microsoft_fonts',
+        is_optional=True,
+    )
+    register_action(
+        action_class=FirewallAction,
+        config_key='firewall',
+        is_optional=True,
+    )
+    register_action(
+        action_class=WireguardAction,
+        config_key='wireguard',
+        is_optional=True,
+    )
+
+    # === Phase 5: boot (must come last) ===================================
+    register_action(
+        action_class=MkinitcpioAction,
+        config_key='__root__',
+        is_optional=True,
+    )
+    register_action(
+        action_class=KernelCmdlineAction,
+        config_key='__root__',
+        is_optional=True,
     )
 
 
@@ -91,9 +183,12 @@ def execute_installation(config_file: str) -> bool:
     # Parse configuration
     parser = JsonParser(config_file)
     config = parser.debug()
-    
-    # Create executor and run
+
+    # Populate shared context with root-level fields that some actions need
     executor = ActionExecutor(config)
+    executor.context.set("drivers", config.get("drivers", []))
+    executor.context.set("bootloader", config.get("bootloader", "grub"))
+
     return executor.execute_all()
 
 
@@ -110,10 +205,8 @@ class ActionsHandler:
         Args:
             filename: Path to JSON configuration file
         """
-        # Setup actions if not already done
         setup_actions()
         
-        # Execute installation
         success = execute_installation(filename)
         
         if not success:
