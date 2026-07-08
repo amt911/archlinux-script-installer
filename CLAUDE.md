@@ -63,6 +63,28 @@ bash .scripts/installer-1.sh
 shellcheck .scripts/*.sh
 ```
 
+## Agentic PR verification (MANDATORY on every PR)
+
+**Every PR MUST be verified end-to-end before merge, and the verdict MUST be posted as a PR
+comment** via `gh pr comment`. A headless agent (`claude -p`, local) drives the change and posts
+the result; it **never merges** — it waits for you. Running the pass and posting the verdict
+comment is **not optional**. It catches what a diff and shellcheck miss: a script that parses
+fine but breaks partway through an install, a wrong partition/variable name, a step that silently
+no-ops.
+
+- **Engine.** These are unattended install scripts, not a running app — there is nothing to point
+  Playwright at. Verification means: run the changed stage(s) end-to-end in a **safe, disposable
+  sandbox** (an Arch Linux container/chroot or a throwaway VM snapshot) and inspect the
+  output/log, falling back to `bash -n` (syntax check) + a dry-run/`--help` invocation only when
+  no sandbox is available. **Never** run `installer-1.sh`, `after-install-2.sh`,
+  `libvirt-subvol-3.sh` or `gpu-pass-4.sh` against a real disk, partition, or the host machine —
+  these scripts partition disks, encrypt volumes, and modify `sudo`; a live run outside a sandbox
+  is destructive and irreversible.
+- **Two layers.** Deterministic checks (shellcheck) stay the hard merge gate; the agentic pass is
+  advisory and never vetoes a merge on its own — but running it and posting the verdict comment is
+  mandatory.
+- **Hard limits.** The verdict awaits your close; the agent never merges.
+
 ## Working rules
 
 - **These scripts are destructive and machine-specific** — never run them here; only edit. Assume

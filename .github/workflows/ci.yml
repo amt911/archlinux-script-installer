@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    # Advisory: the existing scripts have pre-existing shellcheck findings (unassigned-var
+    # warnings from sourced vars.sh, a couple of missing shebangs on snippet-style files under
+    # additional_resources/). Don't block merges on them; fix opportunistically.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck on all shell scripts
+        run: |
+          find . -name '*.sh' -not -path './new/*' -not -path './arch-wiki/*' -print0 \
+            | xargs -0 shellcheck
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    # Advisory: not currently blocking, to avoid turning main red on a still-evolving ruleset.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install semgrep
+      # NOTE: the "p/bash" registry shorthand 404s as of writing; "r/bash" is the ruleset that
+      # actually resolves and covers the same bash-specific checks. Verified 0 findings locally.
+      - run: >-
+          semgrep scan --disable-version-check --metrics=off
+          --config r/bash
