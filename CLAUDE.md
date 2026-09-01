@@ -63,6 +63,61 @@ bash .scripts/installer-1.sh
 shellcheck .scripts/*.sh
 ```
 
+## Real-machine verification — the only test this repo can have
+
+There is no build, no package manager and no test suite here, and there cannot be a useful one:
+**these scripts partition disks, write bootloader entries and edit `sudoers`.** A function that
+decides to run `sgdisk` is not the partition table it produces, and a heredoc that writes a sudoers
+line is not a system you can still `sudo` on. Reading the script carefully is necessary and is not
+evidence.
+
+The only real test is a **fresh VM booted from the real Arch ISO, running the script end to end, and
+rebooting into what it produced.** A run that does not reach a second boot has not been tested.
+
+What "real machine" means here, concretely:
+
+- **A throwaway QEMU/libvirt guest with a fresh disk image every time.** Reusing an image an earlier
+  run mutated means the next run is testing a machine the previous run broke — and a script that is
+  accidentally idempotent on a dirty disk will fail on a clean one.
+- **A real reboot into the installed system**, not just a successful script exit. The failures that
+  matter — wrong UUID in `fstab`, an initramfs the bootloader does not look for, a broken
+  `sudoers`, a missing subvolume mount — all surface at boot, not during the install.
+- **Every supported path.** Encrypted and unencrypted, EXT4 and BTRFS-with-subvolumes: they are
+  different code paths and a green run through one says nothing about the others.
+- **Real hardware for GPU passthrough.** IOMMU groups, `vfio-pci` binding order and a second GPU
+  cannot be modelled in a guest. That part of the repo is verified on the machine it is for, or not
+  at all.
+
+### The names, so you can ask for them by name
+
+| Name | What it means here |
+| --- | --- |
+| **E2E / on-machine acceptance test** | Boot the ISO in a fresh guest, run the script, reboot, and assert on observable results — the system boots, `findmnt` shows the intended subvolumes, `bootctl list` shows the entry, the user can `sudo`, the expected services are enabled. Never on the script's own log lines. |
+| **Contract test** | Checks that assumptions about **things outside this repo** still hold, which is most of what these scripts do. The Arch ISO's bundled tooling changes; `pacman` output and flags change; `sgdisk` partition numbering, `systemd-boot` entry syntax, the NVIDIA package names and the `vfio` kernel parameters all move over time. A script that shells out is a written-down guess about another program's behaviour, and only a real run measures it. |
+| **Mutation testing** (here: by hand) | Break one step on purpose — a wrong UUID, a missing `mkinitcpio` run — re-run in the guest, confirm it actually fails or produces an unbootable system, restore. **A check that has never failed has not been tested**, and with `set -e` only partially applied here, "the script finished" is a much weaker signal than it looks. |
+| **State-invariant test** | Asserts a relationship **between two things** neither one alone can prove: `fstab`'s UUIDs against what `blkid` reports; the initramfs filename against what the bootloader entry references; the BTRFS subvolume layout against the mount options; `crypttab`/kernel cmdline against the LUKS container. Each file can be individually well-formed while the pair leaves an unbootable machine. |
+| **Test pollution / isolation leak** | Running any of this on your own system. It is not flakiness — it is a repartitioned disk or a `sudoers` file edited **without `visudo`**, which means a syntax error locks out privilege escalation with no warning and no undo. Guest only. Snapshot before, and know how to roll back. |
+
+### Rules that came out of real bugs, not theory
+
+- **Prove every check can fail before you trust it green.** Break a step deliberately and confirm the
+  guest ends up broken in the way you expect. Given the partial error checking here, a script that
+  exits 0 is not a claim that every step ran.
+- **Never assert on a count you cannot predict.** "Installed more than 40 packages", "the ESP is
+  about 300 MB" — both go green against a genuinely broken run as soon as a mirror or a config
+  changes, because the magnitude depends on the input, not on the bug. Assert the **invariant**: the
+  machine boots unattended; `fstab` names the UUID `blkid` reports; the bootloader entry points at an
+  initramfs that exists; the user can `sudo`; a second run over the same config does not corrupt what
+  the first produced.
+- **A UUID, subvolume path or bootloader entry must die with the filesystem it describes.** A stale
+  entry pointing at a partition that was recreated produces a machine that fails to boot with a
+  message that blames the wrong thing.
+- **Never run these scripts outside a guest** — including "just the small helper". `sudoers` is
+  edited without `visudo` on purpose, so a mistake is not recoverable from a normal session.
+- **Claim exactly what you verified.** Say which paths you actually ran (encrypted/unencrypted,
+  EXT4/BTRFS), whether the guest rebooted, and what was only read rather than executed. "The script
+  looks right" is not a result.
+
 ## Agentic PR verification (MANDATORY on every PR)
 
 **Every PR MUST be verified end-to-end before merge, and the verdict MUST be posted as a PR
