@@ -118,6 +118,14 @@ What "real machine" means here, concretely:
   EXT4/BTRFS), whether the guest rebooted, and what was only read rather than executed. "The script
   looks right" is not a result.
 
+- **Mutation gate (60%) — does not apply here, and that is why it is written down.** The template
+  requires a 60% mutation threshold over business logic, and there is no in-process suite to mutate:
+  the deliverable partitions disks and installs a system, so the only honest test is the real-machine
+  run described above. The discipline still applies **by hand** — break the check on purpose, confirm
+  it goes red, restore. A check that has never failed has not been tested. If pure helper functions
+  are ever extracted with a real suite around them, the automated gate applies to those from that
+  day.
+
 ## Agentic PR verification (MANDATORY on every PR)
 
 **Every PR MUST be verified end-to-end before merge, and the verdict MUST be posted as a PR
