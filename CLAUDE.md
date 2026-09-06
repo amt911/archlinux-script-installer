@@ -154,6 +154,11 @@ no-ops.
   they run on a fresh Arch install as root.
 - **Keep the run order** encoded in the `-N` suffix; a new stage gets the next number.
 - **Shared logic goes in `common-functions.sh`**, sourced by each stage.
+- **Reuse before you write** — before adding a function to a stage, grep the tree for it
+  (`grep -rn '^[a-z_]*()' .scripts/`). If `common-functions.sh` already has it, source and call it;
+  if a second stage needs the same block, it moves there in the same change instead of being pasted.
+  Copy-pasted bash rots silently: the fix lands in stage 3 and stage 5 keeps the bug — and here a
+  stale copy runs as root on a real disk.
 - **Record gotchas / temporary fixes in `TODO`** (and the README NOTE sections) so they aren't lost.
 - **shellcheck-clean** where practical; quote variables and use `set -euo pipefail` in new scripts.
 
