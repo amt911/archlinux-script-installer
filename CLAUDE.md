@@ -261,6 +261,9 @@ measured number.
   they run on a fresh Arch install as root.
 - **Keep the run order** encoded in the `-N` suffix; a new stage gets the next number.
 - **Shared logic goes in `common-functions.sh`**, sourced by each stage.
+- **New packages or tooling: ask first, then add** — pulling in a new `pacman` package, AUR helper
+  or build tool is allowed when a stage genuinely needs it, but ask before adding it (what, why)
+  and wait for the go-ahead: every package here lands on a real machine's fresh install.
 - **Reuse before you write** — before adding a function to a stage, grep the tree for it
   (`grep -rn '^[a-z_]*()' .scripts/`). If `common-functions.sh` already has it, source and call it;
   if a second stage needs the same block, it moves there in the same change instead of being pasted.
