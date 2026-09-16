@@ -1,4 +1,4 @@
-# archlinux-script-installer — Claude Guide
+# archlinux-script-installer — Agent Guide
 
 Collection of Bash scripts that install Arch Linux (almost) unattended for the maintainer's
 personal setup, plus NVIDIA GPU-passthrough VM configuration. **Personal use only** — the
@@ -11,6 +11,33 @@ Not an app — an ordered set of shell scripts under `.scripts/`, plus drop-in c
 under `.scripts/additional_resources/` (CoolerControl, MangoHud, systemd-boot entries, udev
 rules, laptop scripts). Supports encrypted/unencrypted installs, EXT4 or BTRFS + subvolumes,
 snapper snapshots, GRUB/systemd-boot, KDE Plasma, and `envycontrol` on NVIDIA laptops.
+
+## Agent compatibility — Codex and Claude Code
+
+This file is `AGENTS.md`: the **one** instruction file for every coding agent in this repo. Codex
+reads it directly; Claude Code reads `CLAUDE.md`, which only imports this file (`@AGENTS.md`) and
+holds what applies to Claude alone. **Edit rules here, never in `CLAUDE.md`** — two copies of a
+rule drift apart on the first edit, and each agent then obeys a different one.
+
+| Concern | Claude Code | Codex |
+| --- | --- | --- |
+| Instruction file | `CLAUDE.md` → imports `AGENTS.md` | `AGENTS.md` (root down to the working directory) |
+| Invoke a skill | `Skill` tool, or `/<skill>` | mention it (`$<skill>`), or let it trigger from its description |
+| Skills on disk | `~/.claude/skills` (links into `~/.agents/skills`) | `.agents/skills`, then `~/.agents/skills` |
+| superpowers | `superpowers@claude-plugins-official` (`/plugin install`) | `superpowers@openai-curated` (install from `/plugins`; that id is its key in `~/.codex/config.toml`) |
+| MCP servers | `claude mcp add -s user <name> -- <cmd>` | `codex mcp add <name> -- <cmd>` (`~/.codex/config.toml`) |
+| File size | imports load whole | `project_doc_max_bytes`, **32 KiB by default** — raise it when this file is bigger, or the tail is silently dropped |
+
+- **Install shared skills once, for both agents:** `npx skills add <owner/repo> -g --skill <name>`
+  writes to `~/.agents/skills` and links it for Claude Code, so both run the same version.
+- **Names in this file are capabilities, not one agent's syntax.** "Invoke the `X` skill" means the
+  `Skill` tool in Claude Code and a skill mention in Codex. An MCP server named here is used when it
+  is registered for the agent you are running in; its absence never blocks ordinary work.
+- **Modes, model caps and Git rules bind both agents.** "lite mode", "normal mode" and "modo
+  desatendido" mean the same in Codex; a cap written as "no model above Sonnet" means "no model
+  above the mid tier" there.
+- **Claude-only commands** (slash commands that are not skills) are skipped by Codex unless the
+  same capability is installed as a skill in `~/.agents/skills`.
 
 ## Superpowers — use whenever applicable
 
@@ -146,6 +173,10 @@ no-ops.
 - **Two layers.** Deterministic checks (shellcheck) stay the hard merge gate; the agentic pass is
   advisory and never vetoes a merge on its own — but running it and posting the verdict comment is
   mandatory.
+- **The verdict reads structure too.** Besides driving the sandboxed run, it names what the diff
+  does to the [Design principles](#design-principles--solid-applied-with-judgement): a side effect
+  inlined into a stage instead of a named function, or a new speculative helper with one caller.
+  Findings, not a veto — like the rest of the pass.
 - **Hard limits.** The verdict awaits your close; the agent never merges.
 
 ## Debugging — keep the loop from running away
@@ -255,6 +286,40 @@ measured number.
 3. **The inert assertions** — break one assertion on purpose and run the suite; anything still green
    is inert. Then prune the table above to what this stack can actually produce.
 
+## Design principles — SOLID, applied with judgement
+
+SOLID is a list of **symptoms to look for**, not a pattern to apply. Every one of the five exists
+to keep a change local: the useful question is *how many files does the next plausible change
+touch, and how many of them do you have to understand first?* Applied by rote it produces the
+opposite — an interface per class, a factory for one product, an eight-file feature — so here it
+is bounded by YAGNI and by the **Reuse before you write** rule (see [Working rules](#working-rules)).
+
+| Principle | Checkable smell | Usual fix |
+| --- | --- | --- |
+| **S — Single responsibility**: one reason to change | the description needs "and"; the file changes in PRs about unrelated features; a test mocks things unrelated to what it asserts | split along the reason to change — IO, decision, presentation |
+| **O — Open/closed**: extend without editing | adding a case edits a growing `if`/`case` chain in several places; one flag variable per variant | a lookup table, dispatch function or named-function registry — introduced at the second real case, not the first |
+| **L — Liskov substitution**: subtypes keep the contract | a stage silently skips work a sibling stage does; a "variant" of a shared function drops a check the others rely on | narrow the shared contract, or stop pretending it's a variant and give it its own name |
+| **I — Interface segregation**: clients see only what they use | a function takes a whole config blob to read one field; a sourced helper drags in unrelated globals | pass the fields, not the bag; split a growing helper file by concern |
+| **D — Dependency inversion**: policy does not import mechanism | decision logic calls `pacman`, `sgdisk` or `curl` directly instead of through a named helper; a step can't be dry-run because the side effect is inline | put the side-effecting command behind a named function a dry-run flag can skip |
+
+### Where the seams go, per stack
+
+| Stack | Seams |
+| --- | --- |
+| Shell | one function per job; side effects (`rm`, package managers, network, disk operations) isolated in named functions a dry-run flag can skip |
+
+### Where SOLID stops
+
+- **No abstraction (a new helper layer, a dispatch table, a config-driven branch) without one of:**
+  a second real caller, an IO boundary (disk, network, package manager), or a case a dry-run flag
+  needs to skip. "We might need it later" is not on the list.
+- **Reuse first beats speculative extension points:** add the parameter to the existing function
+  before inventing a new abstraction for it.
+- **Speculative abstraction is a review finding**, exactly like a violation: a helper with one
+  caller and no IO behind it gets inlined back into the stage that uses it.
+- **Refactor toward SOLID when a change hurts**, in the PR that felt the pain — not as a drive-by
+  rewrite of a stage nobody is changing.
+
 ## Working rules
 
 - **These scripts are destructive and machine-specific** — never run them here; only edit. Assume
@@ -269,6 +334,11 @@ measured number.
   if a second stage needs the same block, it moves there in the same change instead of being pasted.
   Copy-pasted bash rots silently: the fix lands in stage 3 and stage 5 keeps the bug — and here a
   stale copy runs as root on a real disk.
+- **SOLID where it pays, not by rote** — split a stage by reason to change, extend through a
+  lookup/dispatch instead of a growing `if`/`case` chain, keep helpers narrow, and push side
+  effects (package manager, disk, network) behind named functions a dry-run flag can skip. No new
+  abstraction without a second caller, an IO boundary or a dry-run seam. See
+  [Design principles](#design-principles--solid-applied-with-judgement).
 - **Record gotchas / temporary fixes in `TODO`** (and the README NOTE sections) so they aren't lost.
 - **shellcheck-clean** where practical; quote variables and use `set -euo pipefail` in new scripts.
 - **Instrument before you ablate, budget the lap, and dispatch review in parallel** — a pipeline that completes with non-empty output produced output; more than three reproductions means you owe a shortcut script; a review finding is not a reproduction; and the review of task N runs alongside the implementation of N+1. See **Debugging** and **Agent orchestration** above.
